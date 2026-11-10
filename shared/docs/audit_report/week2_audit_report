@@ -1,0 +1,251 @@
+# Phase 2 — Step 2 — Week 2 Comparative Audit
+> **Status**: Read-only static inspection. No code executed, modified, or staged.  
+> All findings: `[VERIFIED via static inspection]` unless otherwise labeled.
+
+---
+
+## A. Sentinel-2 Optical Preprocessing Comparison
+
+### Scripts Audited
+| Script | Author | Lines | Reader | Resize Method |
+|:-------|:-------|------:|:-------|:-------------|
+| `preprocess_s2_adarsh.py` | Adarsh | 254 | `rasterio` only | `F.interpolate` (PyTorch bilinear) |
+| `preprocess_s2_meet.py` | Meet | 182 | `rasterio` only | `F.interpolate` (PyTorch bilinear) |
+| `preprocess_s2_jainam.py` | Jainam | 261 | `PIL.Image.open` (+ `.npy` fallback) | `PIL.Image.resize` bilinear |
+| `preprocess_s2_fateh.py` | Fateh | 50 | `PIL.Image.open` (+ `.npy` fallback) | `PIL.Image.resize` bilinear |
+
+### A1. Band Selection & Channel Order
+
+| Script | Bands Read (order) | Final Channel 0 | Channel 1 | Channel 2 |
+|:-------|:------------------|:---------------|:----------|:----------|
+| `preprocess_s2_adarsh.py` | B02→B03→B04, then `rgb[[2,1,0]]` swap | B04 (Red) ✅ | B03 (Green) ✅ | B02 (Blue) ✅ |
+| `preprocess_s2_meet.py` | B04→B03→B02 (direct) | B04 (Red) ✅ | B03 (Green) ✅ | B02 (Blue) ✅ |
+| `preprocess_s2_jainam.py` | B04→B03→B02 (default arg) | B04 (Red) ✅ | B03 (Green) ✅ | B02 (Blue) ✅ |
+| `preprocess_s2_fateh.py` | B02→B03→B04 (default arg, **no reorder**) | B02 (Blue) ❌ | B03 (Green) ✅ | B04 (Red) ❌ |
+
+> [!CAUTION]
+> **`preprocess_s2_fateh.py` has inverted R/B channels** — Channel 0 = Blue instead of Red. When combined with population statistics from `s2_stats.json` (computed as [B04, B03, B02]), this causes **wrong normalization stats applied to wrong channels**. This is a correctness bug for Phase 4.
+
+### A2. Resolution & Resizing
+
+All four scripts: Input 120×120 → Output 224×224. All use bilinear interpolation. ✅ Consistent.
+
+Difference: Adarsh/Meet use `torch.nn.functional.interpolate` (batch dimension required, then squeezed). Jainam/Fateh use `PIL.Image.resize` per-band. Both produce equivalent results but different numerical precision at the sub-pixel level.
+
+### A3. Reflectance Scaling Before Normalization
+
+No script divides raw reflectance values by 10,000 (the standard Sentinel-2 L2A scaling factor to [0,1]). All work in raw Digital Number (DN) space (typical BigEarthNet range: 0–10,000+). **This is consistent across all four implementations** and is the correct approach for BigEarthNet since population statistics (`s2_stats.json`) were computed in raw DN space.
+
+### A4. Normalization Strategy
+
+| Script | Normalization Type | Stats Source | Division-by-zero guard |
+|:-------|:------------------|:-------------|:-----------------------|
+| `preprocess_s2_adarsh.py` | Population Z-score: `(x - mean) / std` | Loaded from `s2_stats.json` (CWD-relative) | ❌ No guard |
+| `preprocess_s2_meet.py` | Population Z-score: `(x - mean) / std` | Loaded from `teammate_inputs/s2_stats.json` | ✅ `std > 1e-7` guard |
+| `preprocess_s2_jainam.py` | **Per-patch** Z-score: `(x - patch_mean) / patch_std` | Computed from each patch's own pixels | ✅ `np.maximum(std, 1e-6)` |
+| `preprocess_s2_fateh.py` | **Per-patch** Z-score: `(x - patch_mean) / patch_std` | Computed from each patch's own pixels | ✅ `np.maximum(std, 1e-6)` |
+
+> [!IMPORTANT]
+> **Jainam and Fateh use per-patch normalization instead of population (dataset-wide) statistics.** This means each patch independently maps to roughly mean≈0, std≈1, losing inter-patch scale information. This is **incompatible with the training pipeline** that uses population statistics from `s2_stats.json`. Per-patch normalization is not wrong in isolation but cannot be mixed with scripts that use population normalization.
+
+### A5. Missing/Invalid Value Handling
+
+| Script | FileNotFoundError on missing band | NaN/Inf check | Shape validation |
+|:-------|:---------------------------------|:-------------|:----------------|
+| `preprocess_s2_adarsh.py` | `StopIteration` from `next(glob)` — unclear error | ❌ No | ❌ No |
+| `preprocess_s2_meet.py` | ✅ `FileNotFoundError` with clear message | ✅ `np.isfinite` check | ✅ Shape assertion |
+| `preprocess_s2_jainam.py` | ✅ `FileNotFoundError` | ❌ No explicit NaN check | ✅ Shape assertion |
+| `preprocess_s2_fateh.py` | ✅ `FileNotFoundError` | ❌ No | ❌ No |
+
+### A6. Output Type
+
+| Script | Returns | Dtype |
+|:-------|:--------|:------|
+| `preprocess_s2_adarsh.py` | `np.ndarray` (3, 224, 224) | float32 |
+| `preprocess_s2_meet.py` | `torch.Tensor` (3, 224, 224) | float32 |
+| `preprocess_s2_jainam.py` | `torch.Tensor` (3, 224, 224) | float32 |
+| `preprocess_s2_fateh.py` | `torch.Tensor` (3, 224, 224) | float32 |
+
+> `preprocess_s2_adarsh.py` returns NumPy, while all others return Tensors. The Dataset class (`dataset_adarsh.py`) wraps the result with `torch.as_tensor(ms_tensor, dtype=torch.float32)` to handle this. ✅ Compatible.
+
+### A7. S2 Canonical Candidate
+
+**`preprocess_s2_meet.py`** ⭐  
+Reasons: Correct channel order (B04→B03→B02), population statistics, division-by-zero guard, NaN/Inf validation, shape assertion, `FileNotFoundError` with clear messages, configurable `target_size`, hardcoded-path-free (uses `teammate_inputs/s2_stats.json` relative to script — still needs Phase 3 config centralization).
+
+---
+
+## B. Sentinel-1 SAR Preprocessing Comparison
+
+### Scripts Audited
+| Script | Author | Lines | Reader | Norm Mode |
+|:-------|:-------|------:|:-------|:----------|
+| `sar_preprocessing_meet.py` | Meet | 385 | rasterio → PIL fallback | Configurable: none/min-max/**z-score** |
+| `sar_preprocessing_adarsh.py` | Adarsh | 331 | rasterio → PIL fallback | Z-score only |
+| `sar_preprocessing_fateh.py` | Fateh | 331 | PIL only (rasterio fallback inline) | Z-score only |
+| `sar_preprocessing_fateh_2.py`* | Fateh | 45 | PIL only | Per-band Z-score (no population stats) |
+
+*`sar_preprocessing_fateh.py` = clean production version; `sar_preprocessing_fateh_2.py` = the one actually named `sar_preprocessing_fateh.py` in `weeks/week_02/preprocessing/` is the 45-line version — see below.
+
+### B1. VV/VH Band Selection & Order
+
+All four implementations: Channel 0 = VV, Channel 1 = VH. ✅ Fully consistent.
+
+### B2. dB Clipping
+
+| Script | VV Clip | VH Clip | Validation |
+|:-------|:--------|:--------|:-----------|
+| `sar_preprocessing_meet.py` | [-25.0, 0.0] configurable via `VV_CLIP_RANGE` | [-25.0, 0.0] configurable | ✅ `min < max` check |
+| `sar_preprocessing_adarsh.py` | [-25.0, 0.0] hardcoded constants | [-25.0, 0.0] | ✅ `min < max` check |
+| `sar_preprocessing_fateh.py` (331-line) | [-25.0, 0.0] hardcoded constants | [-25.0, 0.0] | ✅ `min < max` check |
+| `sar_preprocessing_fateh.py` (45-line actual file) | ❌ **No clipping** | ❌ **No clipping** | — |
+
+> [!CAUTION]
+> **The 45-line `sar_preprocessing_fateh.py` (actual file on disk) skips dB clipping entirely.** It reads bands, resizes, and applies per-band normalization with no `np.clip` call. This will pass extreme outlier dB values into the model.
+
+### B3. Normalization
+
+| Script | Method | Stats Source | Per-band or joint |
+|:-------|:-------|:-------------|:-----------------|
+| `sar_preprocessing_meet.py` | Z-score `(clipped - mean) / std` | `s1_stats.json` via `config.settings` | Per-band (VV and VH separately) |
+| `sar_preprocessing_adarsh.py` | Z-score `(clipped - mean) / std` | `s1_stats.json` from `parent.parent` | Per-band |
+| `sar_preprocessing_fateh.py` (331-line) | Z-score `(clipped - mean) / std` | `s1_stats.json` from `parent` | Per-band |
+| `sar_preprocessing_fateh.py` (45-line, actual) | **Per-patch** `(x - x_mean) / x_std` | Each patch's own pixels | Spatial mean over H×W |
+
+The 45-line version also does not load `s1_stats.json` at all — no population stats used.
+
+### B4. Transformation Pipeline Comparison
+
+```
+meet/adarsh/fateh(331):  Load → Clip[-25,0] → Z-score(population stats) → Resize(224) → Stack → Tensor
+fateh(45-line actual):   Load → Resize(224) → Stack → Per-patch Z-score → Tensor   [NO CLIP]
+```
+
+### B5. NaN/Inf Validation
+
+| Script | Finite check |
+|:-------|:------------|
+| `sar_preprocessing_meet.py` | ✅ After normalization; raises ValueError |
+| `sar_preprocessing_adarsh.py` | ✅ After normalization + final tensor |
+| `sar_preprocessing_fateh.py` (331-line) | ✅ Same as Adarsh |
+| `sar_preprocessing_fateh.py` (45-line) | ❌ None |
+
+### B6. SAR Canonical Candidate
+
+**`sar_preprocessing_adarsh.py`** ⭐ (nearly identical to `sar_preprocessing_fateh.py` 331-line, which is structurally identical)
+
+The two are functionally equivalent except for `STATS_PATH` location. `sar_preprocessing_meet.py` is more configurable but requires `config.settings` import. For the canonical selection, **either Adarsh or Fateh's 331-line version** works best — they are virtually the same code. Meet's version is preferred if `config.settings` is centralized first.
+
+> **Important**: The 45-line `sar_preprocessing_fateh.py` (the actual file on disk) is a simplified/incomplete version and must **not** be used in the training pipeline.
+
+---
+
+## C. Dataset & DataLoader Comparison
+
+### C1. Dataset Implementations
+
+| Feature | `paired_bigearthnet_dataset_meet.py` | `dataset_adarsh.py` | `dataset_fateh.py` |
+|:--------|:-------------------------------------|:--------------------|:-------------------|
+| S1-only Dataset class | ❌ Not included | ✅ `BigEarthNetS1Dataset` | ✅ `BigEarthNetS1Dataset` (identical) |
+| Paired Dataset class | ✅ `PairedBigEarthNetDataset` | ✅ (identical to Meet) | ✅ (identical to Meet) |
+| Label encoder | ✅ `BigEarthNetLabelEncoder` | ✅ (identical) | ✅ (identical) |
+| Import of SAR preprocessor | `from preprocessing.sar_preprocessing` (Meet's) | `from week4.sar_preprocessing` ⚠️ | `from preprocessing.sar_preprocessing` |
+| Import of S2 preprocessor | `from preprocessing.preprocess_s2` → returns Tensor | `from preprocessing.preprocess_s2 import preprocess_patch` ⚠️ (function name mismatch) | `from preprocessing.preprocess_s2` |
+| CSV required columns | `patch_id`, `labels`, `split`, `s1_name`, `s2v1_name` | Same | Same |
+| S1 patch cache | JSON cache at `BASE_DIR` | Identical | Identical |
+| S2 path resolution | 4-candidate fallback strategy | Identical | Identical |
+| Return type | `(sar_tensor, ms_tensor, label_tensor, patch_id)` | Same + `torch.as_tensor` wrapper | Same |
+| Error on corrupt patch | Raises immediately | 10-retry random fallback in S1Dataset | 10-retry random fallback |
+
+> [!IMPORTANT]
+> **`dataset_adarsh.py` imports `from week4.sar_preprocessing`** — this is the original repo path (`week4/` subdirectory). In the consolidated `weeks/week_02/dataloader/` location, `week4` does not exist — this import **will fail**. Similarly, it imports `preprocess_patch` but Meet's module exports `preprocess_s2_patch`.
+
+### C2. SAR-MS Pairing Mechanism
+
+All three use the same CSV-driven pairing: `train_split.csv` has columns `s1_name`, `s2v1_name`, `patch_id`. S1 patch directory is located via a JSON cache built by scanning `s1_root`. S2 folder is resolved via 4-candidate path search. **Pairing is deterministic and correct** given valid CSV. ✅
+
+### C3. Split Isolation
+
+`PairedBigEarthNetDataset` uses one CSV per split (train/val/test) — no cross-contamination possible. `BigEarthNetS1Dataset` uses a split file (`.txt`) or deterministic 70/15/15 fallback with seed=42. ✅ Split integrity preserved.
+
+### C4. DataLoader Comparison
+
+| Feature | `dataloader_meet.py` | `dataloader_adarsh.py` |
+|:--------|:---------------------|:-----------------------|
+| Default `num_workers` | 0 (Windows safety) | 0 (Windows safety) |
+| `pin_memory` | Auto: `torch.cuda.is_available()` | Identical |
+| Train shuffle | ✅ True | ✅ True |
+| Val/Test shuffle | ✅ False | ✅ False |
+| `drop_last` train | False (preserves all 329 batches) | False |
+| Default `train_csv` path | `BASE_DIR/"teammate_inputs"/train_split.csv` | `BASE_DIR/"csvs"/train_split.csv` ⚠️ |
+| `collate_fn` | `paired_collate_fn` | `paired_collate_fn` |
+| Dataset import source | `from dataset.dataset` | `from week4.dataset` ⚠️ |
+| Batch size | 64 (from config) | 64 (from config) |
+
+> `dataloader_adarsh.py` imports from `week4.dataset` and `week4.sar_preprocessing` — both broken in the consolidated location. Meet's `dataloader_meet.py` uses `dataset.dataset` which also depends on the `config.settings` import path.
+
+---
+
+## D. End-to-End Pipeline Compatibility
+
+```
+Raw S1 (120×120, Float32 dB) ─────────────────────────────────────────────────────────────┐
+  ↓ load VV + VH via rasterio (or PIL fallback)                                             │
+  ↓ clip to [-25, 0] dB                                                                     │
+  ↓ z-score per band: (x - VV_mean) / VV_std                                               │
+  ↓ resize 120×120 → 224×224 bilinear                                                       │  Dataset.__getitem__
+  ↓ stack [VV, VH] → Tensor (2, 224, 224) float32 ─────────────────────────────────────────┤
+                                                                                             │
+Raw S2 (120×120, DN float32) ─────────────────────────────────────────────────────────────┐ │
+  ↓ read B04, B03, B02 TIFFs via rasterio (or PIL)                                         │ │
+  ↓ resize 120×120 → 224×224 bilinear                                                       │ │
+  ↓ z-score per channel: (x - CH_mean) / CH_std using s2_stats.json                        │ │
+  ↓ Tensor (3, 224, 224) float32 ───────────────────────────────────────────────────────────┤ │
+                                                                                             │ │
+CSV (patch_id, s1_name, s2v1_name, labels) ─────────────────────────────────────────────── ↓ ↓
+  → PairedBigEarthNetDataset.__getitem__ → (SAR tensor, MS tensor, label (19,), patch_id)
+  → DataLoader (batch_size=64, shuffle=True) → collate_fn
+  → Batch: SAR (64,2,224,224) + MS (64,3,224,224) + Labels (64,19) + patch_ids[64]
+  → Two-Tower ResNet-50 × 2 → 512-D embeddings → InfoNCE loss
+```
+
+**Compatible combinations**: Meet's SAR + Meet's S2 + Meet's Dataset + Meet's DataLoader ✅  
+**Broken combinations**: Any script using `from week4.xxx` imports when run from `weeks/week_02/` ❌
+
+---
+
+## E. Summary Matrices
+
+### E1. Input/Output Dimensions
+
+| Modality | Input | Output Tensor | Dtype |
+|:---------|:------|:-------------|:------|
+| Sentinel-1 SAR | 2 × 120×120 Float32 GeoTIFF | (2, 224, 224) | float32 |
+| Sentinel-2 MS | 3 × 120×120 Float32 GeoTIFF | (3, 224, 224) | float32 |
+| Paired batch (B=64) | — | SAR: (64,2,224,224) + MS: (64,3,224,224) | float32 |
+| Label | 19-class multi-hot | (B, 19) | float32 |
+
+### E2. Canonical Implementation Candidates
+
+| Component | Canonical Candidate | Evidence | Runner-up |
+|:----------|:--------------------|:---------|:----------|
+| S2 Preprocessing | **`preprocess_s2_meet.py`** | Correct channel order, population stats, NaN guard, shape validation, FileNotFoundError, configurable | `preprocess_s2_adarsh.py` (needs NumPy→Tensor wrap + guard) |
+| SAR Preprocessing | **`sar_preprocessing_adarsh.py`** | Clip + z-score + resize + NaN check; no broken imports | `sar_preprocessing_meet.py` (most configurable but needs `config.settings`) |
+| Paired Dataset | **`paired_bigearthnet_dataset_meet.py`** | No broken imports; correct preprocessing imports; tested collate_fn | `dataset_fateh.py` (identical logic, same broken import issue) |
+| DataLoader | **`dataloader_meet.py`** | Imports from `dataset.dataset` (not `week4`); canonical CSV paths documented | — |
+| Stats Generator | **`compute_stats_adarsh.py`** | Detailed, training-only stats, running statistics for RAM efficiency | Only one stats generator exists |
+
+### E3. Known Bugs / Incompatibilities to Fix in Phase 4
+
+| # | Bug | File | Severity |
+|:--|:----|:-----|:--------:|
+| 1 | Inverted R/B channel order (B02 as Ch0 instead of B04) | `preprocess_s2_fateh.py` | 🔴 Critical |
+| 2 | No dB clipping before normalization | `sar_preprocessing_fateh.py` (45-line) | 🔴 Critical |
+| 3 | Per-patch normalization instead of population stats | `preprocess_s2_jainam.py`, `preprocess_s2_fateh.py`, `sar_preprocessing_fateh.py` (45-line) | 🔴 Critical |
+| 4 | `from week4.sar_preprocessing` broken import | `dataset_adarsh.py` | 🔴 Critical |
+| 5 | `from week4.dataset` broken import | `dataloader_adarsh.py` | 🔴 Critical |
+| 6 | `preprocess_patch` name mismatch (should be `preprocess_s2_patch`) | `dataset_adarsh.py` L42 | 🟡 High |
+| 7 | `s2_stats.json` write to CWD instead of `results/local_pc/` | `compute_stats_adarsh.py` | 🟡 High |
+| 8 | `num_workers=0` must be raised to 8+ on PARAM SHAVAK | Both DataLoaders | 🔴 Critical (HPC) |
+| 9 | `plt.show()` in `preprocesser_adarsh.py` | `preprocesser_adarsh.py` L99 | 🔴 Critical (HPC) |
+| 10 | All absolute Windows paths | Multiple | 🔴 Critical (HPC) |
