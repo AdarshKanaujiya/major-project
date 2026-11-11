@@ -91,8 +91,9 @@ def compute_metrics(query_emb, query_ids, gallery_emb, gallery_ids,
                     gallery_index, mode="cross", paired_ids=None,
                     top_k_list=TOP_K):
     max_k = max(top_k_list) + 1
+    start = time.time()                                     # FIX: scoped inside function
     D, I = gallery_index.search(query_emb, max_k)
-    elapsed = (time.time() - start) / len(query_emb) * 1000
+    elapsed = (time.time() - start) / len(query_emb) * 1000  # ms per query
     print(f"Avg query time: {elapsed:.3f} ms")
 
     recall_at_k = {k: [] for k in top_k_list}

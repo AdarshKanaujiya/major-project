@@ -532,3 +532,64 @@ etwork.\ prefix yielded **0 missing keys and 0 unexpected keys** against \TwoTow
   3. `03_extract_embeddings_and_eval.sh` (1 GPU RTX 5000 Ada, 16 CPUs, 64 GB RAM, 12h)
   4. `run_all_hpc.sh`: Orchestrates automated job dependencies via `sbatch --dependency=afterok`.
 - Pre-flight checklist established in `shared/docs/project_plans_and_audits/PARAM_SHAVAK_MIGRATION_CHECKLIST.md`.
+
+---
+
+## 14. Week 3 Comparative Audit, Scientific Clarification & Controlled Corrections (November 11, 2026)
+
+### 14.1 Scope & Investigation Directives
+`[VERIFIED IN SOURCE CODE & ARTIFACTS]`
+- Full comparative audit of all 15 Week 3 source files across Adarsh, Jainam, Meet, and Fateh.
+- Read-only empirical investigation of SAR channel adaptation, FAISS metric decisions, ID alignment, and historical embedding provenance.
+- Strict protection of historical baseline artifacts in `results/local_pc/week_03/` (never overwritten).
+
+### 14.2 SAR ResNet50 Channel Adaptation Findings
+`[MATHEMATICALLY & EMPIRICALLY VERIFIED]`
+- **Pretrained Energy Distribution**: ResNet50 RGB `conv1` weights allocate 33.5% energy to R (ch 0), 43.8% to G (ch 1), and 22.8% to B (ch 2).
+- **Strategy Comparison**:
+  - **Strategy A (`baseline_extractor_fateh.py`)**: Copies ch 0 and 1; discards 22.8% energy (B channel). Filter L2-norm = 2.74 (vs. original 3.14). Non-canonical alternative.
+  - **Strategy B (`resnet_meet.py:ResNet50S1Encoder`)**: Copies ch 0 and 1, distributes ch 2 evenly ($W[:,:2] + W[:,2:3]/2$). Filter L2-norm = 3.25. Preserves 100% of filter energy.
+  - **Strategy C (Two-Tower `two_tower_*.py`)**: Mean of all 3 RGB channels repeated. Filter L2-norm = 1.81.
+- **Historical Provenance Confirmation**: `baseline_val_s1_generation_summary.json` proves historical SAR embeddings (`baseline_val_s1_embeddings.npy`) were generated on Meet's machine using `ResNet50S1Encoder` (Strategy B).
+
+### 14.3 FAISS Metric Standardization & Empirical Normalization State
+`[EMPIRICALLY VERIFIED]`
+- Baseline validation embeddings are **raw unnormalized 2048-D features** (SAR L2-norm: 7.99–17.36, mean 12.54; MS L2-norm: 6.87–22.53, mean 14.17).
+- Raw L2 distance (`IndexFlatL2`) used historically is legitimate for unnormalized ResNet features, but produces metric incompatibility with Week 5.
+- Reclassified: Future canonical evaluations standardize on **cosine similarity** via **L2-normalization + `IndexFlatIP`** across all four retrieval modes, while historical raw-L2 results remain preserved and labeled.
+- Mathematical equivalence proved: Top-K rankings under normalized inner product are identical to normalized L2 distance (Test 10: 100% match).
+
+### 14.4 Cross-Modal Pairing & Relevance Verification
+`[EMPIRICALLY VERIFIED]`
+- 4,500/4,500 SAR IDs in `baseline_val_s1_patch_ids.txt` match `val_split.csv['s1_name']`.
+- 4,500/4,500 MS IDs in `baseline_val_ms_patch_ids.txt` match `val_split.csv['patch_id']`.
+- Row-for-row alignment between SAR[i] and MS[i] is 100% coherent (0 mismatches across all 4,500 pairs).
+- Zero direct string overlap between `s1_name` and `patch_id` confirms that cross-modal retrieval MUST use `val_split.csv` mapping. Direct string comparison is avoided.
+
+### 14.5 Approved Corrections & Cryptographic Audit Trail
+`[CRYPTOGRAPHICALLY VERIFIED VIA SHA-256]`
+Backups preserved in `weeks/week_03/.backup_pre_correction_w3/`.
+
+| File Path | Pre-Edit SHA-256 | Post-Edit SHA-256 | Action & Scientific Rationale |
+| :--- | :--- | :--- | :--- |
+| `weeks/week_03/embeddings/baseline_extractor_fateh.py` | `4509e2d116ef13d59e570b4aa1c7f2ebcb0212f278a536939c413af2ad04a546` | `6175a71db01e658383f2ce5e27ae15c5d50a8b97e242bc4d0baad26901d838f2` | Replaced deprecated `pretrained=True` with `weights=ResNet50_Weights.DEFAULT`. Preserved Strategy A; documented as non-canonical alternative. |
+| `weeks/week_03/embeddings/generate_baseline_embeddings_adarsh.py` | `1c8e3c32f29f0671a4a738cbd78d7112db5d6574e161cb01d3e4f589720d6a74` | `bb8244eb26f0ab34b3632697a0808ba0a02cd33f19e8de02dea60ba9657f4bd2` | Resolved broken import `from preprocessing.preprocess_s2 import ...` to canonical `weeks.week_02.preprocessing.preprocess_s2_adarsh`. Added project root injection. |
+| `weeks/week_03/embeddings/generate_s1_val_embeddings_meet.py` | `92f48dfa019781afb936404df414c3cdd6b8e68f838da8168d1ed92417c5fa25` | `4b2b9eddf272d1c6d95febacc75837561091122d1da1b7c380db02cf5b6bbeca` | Resolved 3 broken repository imports to canonical `shared.config.settings`, `weeks.week_02.preprocessing.sar_preprocessing_meet`, and `weeks.week_04.models.resnet_meet`. |
+| `weeks/week_03/evaluation/compute_map_week3_adarsh.py` | `9d67ed210947d81107ac453c818cedd9c90e82f675169914cf13b51526963893` | `d7e1c48cfd7aa0415af0bd7a5a6108efed063490a73bbe18bbef4ae8cab24dad` | Fixed timing-variable scope bug: localized `start = time.time()` inside `compute_metrics` so elapsed time measures search execution rather than total script runtime. |
+| `weeks/week_03/evaluation/compute_map_adarsh.py` | `171a8fe2c4141bed101b5e718b265c90b57bbef7dea3ef74cdf81b63665a035e` | `8873c13daa74c8466d3ec4fc4361a81115bfd4efb0b5b4923526865bc7d4a2be` | Marked as DEPRECATED/SUPERSEDED in module header (used label-overlap across all 4 modes). Retained unmodified for contributor provenance. |
+| `weeks/week_03/retrieval/baseline_ms_to_sar_retrieval_jainam.py` | `dce8175fdeb8120df0fc6c93e8689e11454e872967e0454f35be29843c016af3` | `a9ffc8a1cf79a71893c8c61e477c3fb01d67f9a400b5adea27e9a87f0dbb05d0` | Corrected MS ID path: `baseline_val_patch_ids.txt` -> `baseline_val_ms_patch_ids.txt`. |
+| `shared/config/requirements_local.txt` | *(New file)* | Authored canonical local dependency manifest including `psutil>=5.9.0`. |
+| `weeks/week_03/README.md` | *(New file)* | Authored full Week 3 guide, architecture decisions, and evaluation protocols. |
+
+### 14.6 Verification Suite Results
+`[ALL TESTS EXECUTED & PASSED]`
+1. **Compilation (`py_compile`)**: 6/6 modified files compiled cleanly with 0 syntax errors.
+2. **Import Smoke Tests**: All 5 modules imported successfully from project root without broken dependency errors.
+3. **Live S1 Preprocessing on Real GeoTIFF**: Produced PyTorch tensor `(2, 224, 224)`, dtype `torch.float32`, min=-2.3359, max=2.8696, completely finite.
+4. **Live S2 Preprocessing on Real GeoTIFF**: Produced numpy array `(3, 224, 224)`, dtype `float32`, min=-0.6821, max=2.4142, completely finite.
+5. **SAR Feature Extraction via `ResNet50S1Encoder`**: Extracted 2048-D feature vector, completely finite.
+6. **ID Alignment & Coverage**: Verified 4,500/4,500 S1 and MS patch IDs match `val_split.csv` row-for-row.
+7. **Exact-Pair Mapping**: Verified S1 $\leftrightarrow$ S2 bidirectional dictionary mapping on 10 spot-check pairs with 100% accuracy.
+8. **Ranking Equivalence**: Proved `IndexFlatIP` on normalized vectors produces identical top-10 retrieval ranking to normalized `IndexFlatL2` on controlled 50-vector sample.
+9. **Controlled Metric Unit Test**: Hand-verified AP=0.5000, Recall@1=0, Recall@3=1, Recall@5=1 on synthetic ranked retrieval example.
+

@@ -1,4 +1,4 @@
-﻿# CURRENT_PROJECT_STATUS.md — Living Status & Operational Task Log
+# CURRENT_PROJECT_STATUS.md — Living Status & Operational Task Log
 
 > **DOCUMENT STATUS**: Living Status Board (Must be kept updated after every significant task)  
 > **PROJECT**: SENTINEL-RS  
@@ -14,15 +14,16 @@
 > **Operational Pivot**: All engineering effort is focused locally on finalizing, integrating, and scientifically validating the end-to-end source code (Weeks 1 to 5), centralized configuration, environment definitions, and SLURM execution scripts before cluster access is restored.
 
 
-- **Active Development Phase**: **Phase 3 — PARAM SHAVAK HPC Preparation & Staging**
-- **Current Active Milestone**: **Week 1 Reference Staged & Week 2 Verified Staged in param_shavak/**
+- **Active Development Phase**: **Phase 3 — End-to-End Local Research Pipeline Finalization (Weeks 1 to 5)**
+- **Current Active Milestone**: **Week 1, Week 2 & Week 3 Audited, Corrected & Locally Validated**
 - **Previous Steps Completed**: 
   - Step 1: Automated Static AST Dependency & Path Audit [VERIFIED COMPLETE]
   - Step 2 (Week 1): Week 1 Final Revalidation & Quarantined Patch Audit [VERIFIED COMPLETE]
   - Step 2 (Week 2): Week 2 Empirical Verification, Scientific Corrections & Live Real-Data Batch Validation [VERIFIED COMPLETE]
   - Step 2 (Final): Final Numerical Cross-Contributor Audit & Checkpoint Compatibility [VERIFIED COMPLETE]
+  - Step 3 (Week 3): Week 3 Comparative Audit, Scientific Clarification, 6 Approved Source Corrections & 12-Point Test Suite [VERIFIED COMPLETE]
   - Controlled Staging: Week 1 & Week 2 Staged to param_shavak/ with Provenance Checked [VERIFIED COMPLETE]
-- **Next Pending Milestone**: **Phase A — Complete Week 1 and Week 2 HPC Preparation (Path Adaptation, Linux Environment, Full-Dataset Normalization)**
+- **Next Pending Milestone**: **Week 4 Two-Tower Model Architecture Audit, Training Loop & Loss Validation**
 - **Overall Goal**: Consolidate four student member repositories, audit duplicate modules, fix known inference issues, and prepare a verified Linux execution environment for the PARAM SHAVAK HPC cluster without contaminating historical local PC results.
 
 ---
@@ -46,6 +47,7 @@ esults/local_pc/week_01..05, and param_shavak/. |
 | **Week 2 Source Corrections** | [VERIFIED] | Corrected all 15 Week 2 files across Adarsh, Jainam, Meet, Fateh. Backups & SHA256 hashes recorded in weeks/week_02/.backup_pre_correction/. |
 | **Final Numerical Audit** | [VERIFIED] | Verified bitwise equivalence (PyTorch: Adarsh==Meet; PIL: Jainam==Fateh). Proved random init loss .3866 \approx \ln(4)$ uniform baseline. Strict loaded est_model-v1.ckpt (0 missing/unexpected keys) with positive cosine sim 0.93 and trained loss 0.000048. |
 | **Controlled Staging to param_shavak/** | [VERIFIED] | Staged 7 Week 1 files as reference (AUDITED — HPC PATH ADAPTATION PENDING); staged 15 verified Week 2 files. Validated SHA-256 matches. |
+| **Week 3 Audit & Corrections** | [VERIFIED] | Audited 15 Week 3 files; resolved 6 approved corrections (Adarsh MS preprocessing import, Meet SAR imports, Jainam MS ID path, Fateh ResNet weights API, Adarsh timing scope). Created requirements_local.txt and weeks/week_03/README.md. All 12 validation tests passed. |
 
 ---
 

@@ -27,8 +27,12 @@ The user has two goals:
 ### 1.3 What Stage the Project Is Currently In
 - **Phase 1 (Consolidation & Provenance Tracking)**: `[VERIFIED COMPLETE]`  
   All 4 member codebases have been audited and merged into `SENTINEL-RS/`. Historical 30k experimental outputs are safeguarded in `results/local_pc/`.
-- **Phase 2 (Codebase Audit & Dependency Mapping)**: `[ACTIVE / NEXT STAGE]`  
-  Detailed read-only inspection of duplicated implementations across members, resolving Windows-specific path issues, and selecting canonical modules.
+- **Phase 2 (Codebase Audits, Scientific Corrections & Local Validation)**: `[ACTIVE]`  
+  - **Week 1**: Audited and validated (metadata, zero leakage, 19 classes). `[COMPLETE]`
+  - **Week 2**: Audited, 15 files corrected, numerical consistency and strict checkpoint compatibility verified. `[COMPLETE]`
+  - **Week 3**: Audited, scientific clarification completed, 6 approved source corrections applied, 12-point validation suite passed. `[COMPLETE]`
+  - **Week 4 (Next Milestone)**: Two-Tower architecture audit, InfoNCE training loop, and checkpoint saving. `[NEXT]`
+  - **Week 5**: Embeddings extraction, FAISS galleries, and evaluation/Atlas deployment.
 
 ---
 

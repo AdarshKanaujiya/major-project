@@ -8,16 +8,24 @@ Pipeline:
 1. Ingests CURRENT teammate_inputs/val_split.csv in exact row order.
 2. Resolves each S1 patch directly via:
    data/BigEarthNet-S1/BigEarthNet-S1/<first 5 tokens>/<s1_name>/
-3. Applies finalized SAR preprocessing:
+3. Applies finalized SAR preprocessing (canonical: weeks/week_02/preprocessing/sar_preprocessing_meet.py):
    - Outlier clipping to [-25.0, 0.0] dB
    - Normalization using outputs/s1_stats.json
    - Bilinear resizing to 224x224
    - float32 tensor (2, 224, 224)
-4. Encodes via ResNet50S1Encoder to 2048-D latent feature representations.
+4. Encodes via ResNet50S1Encoder (canonical: weeks/week_04/models/resnet_meet.py) to 2048-D.
+   SAR channel adapter: Strategy B (copy ch0+ch1, distribute ch2/2).
+   This matches the encoder used to generate the historical baseline SAR embeddings.
 5. Outputs:
    - teammate_inputs/baseline_val_s1_embeddings.npy (shape (4500, 2048), float32)
    - teammate_inputs/baseline_val_s1_patch_ids.txt (4,500 lines of s1_name)
    - outputs/s1_val_embeddings_summary.json
+
+IMPORT CORRECTIONS (applied 2026-11-11):
+  Replaced broken old-repository imports with canonical project-relative imports:
+  - config.settings         → shared.config.settings  (via PROJECT_ROOT injection)
+  - preprocessing.sar_preprocessing → weeks.week_02.preprocessing.sar_preprocessing_meet
+  - models.resnet            → weeks.week_04.models.resnet_meet
 """
 
 import sys
@@ -27,10 +35,13 @@ import argparse
 import logging
 from pathlib import Path
 
-# Add project root to sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# ---------------------------------------------------------------------------
+# Canonical project root injection
+# ---------------------------------------------------------------------------
+_THIS_DIR = Path(__file__).resolve().parent.parent  # weeks/week_03
+_PROJECT_ROOT = _THIS_DIR.parent.parent             # SENTINEL-RS/
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -38,16 +49,19 @@ import numpy as np
 import pandas as pd
 import psutil
 
-from config.settings import (
-    BASE_DIR,
-    DATA_DIR,
+from shared.config.settings import (
+    S1_DIR as DATA_DIR,
     S1_STATS_PATH,
     VV_BAND_SUFFIX,
     VH_BAND_SUFFIX,
     setup_logging,
 )
-from preprocessing.sar_preprocessing import preprocess_sar_patch
-from models.resnet import ResNet50S1Encoder
+
+# BASE_DIR: the week_03 directory (scripts expect outputs/ relative to it)
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+from weeks.week_02.preprocessing.sar_preprocessing_meet import preprocess_sar_patch
+from weeks.week_04.models.resnet_meet import ResNet50S1Encoder
 
 logger = setup_logging("S1ValEmbeddings")
 

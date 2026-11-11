@@ -1,0 +1,9 @@
+CANONICAL BASELINE EVALUATION RESULTS
+Generated: 2026-11-11
+Metric: Cosine Similarity (L2-normalized embeddings + IndexFlatIP)
+Relevance: Cross-modal = Exact Paired Patch | Same-modal = Label Overlap (self excluded)
+================================================================================
+SAR -> Multispectral (cross-modal)            | R@1: 0.0018 | R@5: 0.0060 | R@10: 0.0113 | mAP: 0.0040 | Time: 0.074 ms | Queries: 4500
+Multispectral -> SAR (cross-modal)            | R@1: 0.0060 | R@5: 0.0171 | R@10: 0.0267 | mAP: 0.0112 | Time: 0.065 ms | Queries: 4500
+SAR -> SAR (same-modal)                       | R@1: 0.8971 | R@5: 0.9922 | R@10: 0.9971 | mAP: 0.9078 | Time: 0.067 ms | Queries: 4500
+Multispectral -> Multispectral (same-modal)   | R@1: 0.9440 | R@5: 0.9960 | R@10: 0.9978 | mAP: 0.9471 | Time: 0.078 ms | Queries: 4500

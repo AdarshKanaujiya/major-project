@@ -6,6 +6,22 @@ satellite image retrieval on BigEarthNet.
 
 A retrieved image is considered relevant when it shares at least one
 land-cover label with the query image.
+
+DEPRECATED — SUPERSEDED (2026-11-11)
+--------------------------------------
+This script is superseded by compute_map_week3_adarsh.py which:
+  - Applies the correct relevance protocol:
+      Cross-modal: exact paired patch match (via val_split.csv mapping)
+      Same-modal:  label-overlap (this file's approach — correct for same-modal)
+  - L2-normalizes embeddings before IndexFlatIP (cosine similarity)
+  - Fixes the timing-variable scope bug
+
+This file uses label-overlap for ALL four retrieval modes, which is INCORRECT
+for cross-modal retrieval (SAR→MS, MS→SAR). Do not use it for final reporting.
+
+Retained unmodified for historical reference and contributor provenance.
+See: shared/docs/audit_report/week3_audit_report.md   Section 7 (W3-D8)
+     shared/docs/audit_report/week3_scientific_clarification_report.md  Section 2.5
 """
 
 import re

@@ -263,3 +263,21 @@ The following files have been copied into \param_shavak/\ for HPC preparation fo
 | \param_shavak/week_02/dataloader/dataloader_meet.py\ | \weeks/week_02/dataloader/dataloader_meet.py\ | Meet | D8188B9B08FF | Verified Staging | Canonical splits, drop_last=False |
 | \param_shavak/week_02/dataloader/dataset_fateh.py\ | \weeks/week_02/dataloader/dataset_fateh.py\ | Fateh | 8AC2F83E2610 | Verified Staging | Self-contained constants |
 | \param_shavak/week_02/dataloader/dataloader_fateh.py\ | \weeks/week_02/dataloader/dataloader_fateh.py\ | Fateh | 2DF52B5101BD | Verified Staging | Canonical splits, drop_last=False |
+
+---
+
+## 5. Week 3 Audited and Corrected Source Implementations (November 11, 2026)
+
+The following Week 3 implementations were audited, corrected, and verified against the canonical project standards. Backups are preserved in `weeks/week_03/.backup_pre_correction_w3/`.
+
+| File Path | Author | Pre-Edit SHA-256 (First 12) | Post-Edit SHA-256 (First 12) | Status | Scientific Role & Applied Correction |
+| :--- | :---: | :---: | :---: | :---: | :--- |
+| `weeks\week_03\embeddings\baseline_extractor_fateh.py` | Fateh | `4509E2D116EF` | `6175A71DB01E` | Non-Canonical Alternative | Updated deprecated `pretrained=True` to `weights=ResNet50_Weights.DEFAULT`. Preserved Strategy A. Documented non-canonical status. |
+| `weeks\week_03\embeddings\generate_baseline_embeddings_adarsh.py` | Adarsh | `1C8E3C32F29F` | `BB8244EB26F0` | Canonical MS Generator | Resolved broken relative import to canonical `weeks.week_02.preprocessing.preprocess_s2_adarsh`. Injected project root. |
+| `weeks\week_03\embeddings\generate_s1_val_embeddings_meet.py` | Meet | `92F48DFA0197` | `4B2B9EDDF272` | Canonical SAR Generator | Resolved 3 broken repository imports to canonical `shared.config.settings`, `weeks.week_02.preprocessing.sar_preprocessing_meet`, and `weeks.week_04.models.resnet_meet`. |
+| `weeks\week_03\evaluation\compute_map_week3_adarsh.py` | Adarsh | `9D67ED210947` | `D7E1C48CFD7A` | Canonical Evaluator | Localized timing scope `start = time.time()` inside `compute_metrics` for accurate per-query latency calculation. |
+| `weeks\week_03\evaluation\compute_map_adarsh.py` | Adarsh | `171A8FE2C414` | `8873C13DAA74` | Deprecated / Superseded | Retained unmodified; added formal deprecation header warning against label-overlap in cross-modal evaluation. |
+| `weeks\week_03\retrieval\baseline_ms_to_sar_retrieval_jainam.py` | Jainam | `DCE8175FDEB8` | `A9FFC8A1CF79` | Verified Retrieval | Corrected MS ID file path from `baseline_val_patch_ids.txt` to `baseline_val_ms_patch_ids.txt`. |
+| `shared\config\requirements_local.txt` | Central | N/A | `N/A` | Canonical Local Config | Comprehensive local Windows CPU environment specification, including `psutil>=5.9.0`. |
+| `weeks\week_03\README.md` | Central | N/A | `N/A` | Canonical Documentation | Complete Week 3 architectural reference, model comparison, and evaluation protocol documentation. |
+

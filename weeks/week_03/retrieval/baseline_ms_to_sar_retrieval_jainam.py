@@ -12,7 +12,7 @@ import faiss
 MS_EMBEDDINGS_PATH = "outputs/embeddings/baseline_val_ms_embeddings.npy"
 SAR_EMBEDDINGS_PATH = "outputs/embeddings/baseline_val_s1_embeddings.npy"
 
-MS_IDS_PATH = "outputs/embeddings/baseline_val_patch_ids.txt"
+MS_IDS_PATH = "outputs/embeddings/baseline_val_ms_patch_ids.txt"
 SAR_IDS_PATH = "outputs/embeddings/baseline_val_s1_patch_ids.txt"
 
 VAL_CSV_PATH = "outputs/metadata/val_split.csv"
