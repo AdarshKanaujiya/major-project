@@ -17,32 +17,58 @@ from torch.utils.data import DataLoader
 
 # Add parent directory to sys.path to allow importing from root-level config package
 import sys
-# Absolute path to 'final ye project'
-_root_dir = str(Path(__file__).resolve().parents[1]) 
-_week4_dir = str(Path(__file__).resolve().parent)
+# Add paths for robust imports
+_week2_dir = Path(__file__).resolve().parent.parent
+_repo_root = _week2_dir.parent.parent
+_dl_dir = Path(__file__).resolve().parent
 
-if _root_dir not in sys.path:
-    sys.path.insert(0, _root_dir)
-if _week4_dir not in sys.path:
-    sys.path.insert(0, _week4_dir)
+for _p in [str(_week2_dir), str(_repo_root), str(_dl_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-# pls get the config settings from the centralized settings.py whenever ur downloading this file from github. Do not hardcode paths in this file. Use the centralized settings.py for all paths and constants.
-from config.settings import (
-    BASE_DIR,
-    DATA_DIR,
-    SPLITS_DIR,
-    DEFAULT_BATCH_SIZE,
-    DEFAULT_NUM_WORKERS,
-    NORMALIZATION_MODE,
-    PRESERVE_RESOLUTION,
-    IMAGE_SIZE,
-    setup_logging,
-)
-from week4.dataset import (
-    BigEarthNetS1Dataset,
-    PairedBigEarthNetDataset,
-    paired_collate_fn,
-)
+try:
+    from config.settings import (
+        BASE_DIR,
+        DATA_DIR,
+        SPLITS_DIR,
+        DEFAULT_BATCH_SIZE,
+        DEFAULT_NUM_WORKERS,
+        NORMALIZATION_MODE,
+        PRESERVE_RESOLUTION,
+        IMAGE_SIZE,
+        setup_logging,
+    )
+except ImportError:
+    BASE_DIR = _repo_root
+    DATA_DIR = _repo_root / "BigEarthNet-S1"
+    SPLITS_DIR = _repo_root / "results" / "local_pc" / "week_02" / "splits"
+    DEFAULT_BATCH_SIZE = 64
+    DEFAULT_NUM_WORKERS = 0
+    NORMALIZATION_MODE = "z_score"
+    PRESERVE_RESOLUTION = False
+    IMAGE_SIZE = (224, 224)
+
+    def setup_logging(name: str):
+        l = logging.getLogger(name)
+        if not l.handlers:
+            h = logging.StreamHandler()
+            h.setFormatter(logging.Formatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s"))
+            l.addHandler(h)
+        l.setLevel(logging.INFO)
+        return l
+
+try:
+    from dataset_adarsh import (
+        BigEarthNetS1Dataset,
+        PairedBigEarthNetDataset,
+        paired_collate_fn,
+    )
+except ImportError:
+    from dataloader.dataset_adarsh import (
+        BigEarthNetS1Dataset,
+        PairedBigEarthNetDataset,
+        paired_collate_fn,
+    )
 
 logger = setup_logging("DataLoader")
 
@@ -136,8 +162,8 @@ def create_dataloaders(
 
 
 def create_paired_dataloaders(
-    train_csv: Union[str, Path] = BASE_DIR / "csvs" / "train_split.csv",
-    val_csv: Union[str, Path] = BASE_DIR / "csvs" / "val_split.csv",
+    train_csv: Optional[Union[str, Path]] = None,
+    val_csv: Optional[Union[str, Path]] = None,
     s1_root: Union[str, Path] = DATA_DIR,
     s2_root: Optional[Union[str, Path]] = None,
     batch_size: int = DEFAULT_BATCH_SIZE,
@@ -163,6 +189,12 @@ def create_paired_dataloaders(
     Returns:
         Tuple[DataLoader, DataLoader]: (train_loader, val_loader)
     """
+    if train_csv is None:
+        c_train = SPLITS_DIR / "train_split.csv"
+        train_csv = c_train if c_train.exists() else (BASE_DIR / "csvs" / "train_split.csv")
+    if val_csv is None:
+        c_val = SPLITS_DIR / "val_split.csv"
+        val_csv = c_val if c_val.exists() else (BASE_DIR / "csvs" / "val_split.csv")
     if pin_memory is None:
         pin_memory = torch.cuda.is_available()
 

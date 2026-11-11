@@ -24,15 +24,23 @@ import rasterio
 import torch
 import torch.nn.functional as F
 
-# Base Project Directory
+# Base Project Directory and Canonical S2 Stats Path
 BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_S2_STATS_PATH = BASE_DIR / "teammate_inputs" / "s2_stats.json"
+_CANONICAL_STATS = (
+    Path(__file__).resolve().parents[3]
+    / "results"
+    / "local_pc"
+    / "week_02"
+    / "normalization_stats"
+    / "s2_stats.json"
+)
+DEFAULT_S2_STATS_PATH = (
+    _CANONICAL_STATS
+    if _CANONICAL_STATS.exists()
+    else (BASE_DIR / "teammate_inputs" / "s2_stats.json")
+)
 
 logger = logging.getLogger("S2Preprocessing")
-
-# Default Sentinel-2 21K training statistics fallback
-DEFAULT_S2_MEAN = np.array([653.1332972784392, 667.5587726157407, 462.5915755522487], dtype=np.float32)
-DEFAULT_S2_STD = np.array([706.4436569001789, 622.4367361587252, 643.1751126025935], dtype=np.float32)
 
 
 def load_s2_stats(stats_path: Optional[Union[str, Path]] = None) -> Tuple[np.ndarray, np.ndarray]:
@@ -40,26 +48,40 @@ def load_s2_stats(stats_path: Optional[Union[str, Path]] = None) -> Tuple[np.nda
     Loads Sentinel-2 RGB normalization statistics (mean and std).
 
     Args:
-        stats_path: Path to s2_stats.json. Defaults to teammate_inputs/s2_stats.json.
+        stats_path: Path to s2_stats.json. Defaults to canonical normalization_stats/s2_stats.json.
 
     Returns:
         Tuple[np.ndarray, np.ndarray]: (mean, std) arrays of shape (3,).
     """
     target_path = Path(stats_path) if stats_path else DEFAULT_S2_STATS_PATH
+    if not target_path.exists():
+        # Also check local directory fallback
+        local_fallback = Path(__file__).resolve().parent / "s2_stats.json"
+        if local_fallback.exists():
+            target_path = local_fallback
 
-    if target_path.exists():
-        try:
-            with open(target_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            mean = np.array(data["mean"], dtype=np.float32)
-            std = np.array(data["std"], dtype=np.float32)
-            return mean, std
-        except Exception as e:
-            logger.warning(f"Failed to read S2 stats from {target_path}: {e}. Using defaults.")
-    else:
-        logger.debug(f"S2 stats file not found at {target_path}. Using defaults.")
+    if not target_path.exists():
+        raise FileNotFoundError(
+            f"Sentinel-2 normalization statistics file not found: {target_path}. "
+            "Silent fallback to divergent hardcoded values is disabled for scientific integrity."
+        )
 
-    return DEFAULT_S2_MEAN.copy(), DEFAULT_S2_STD.copy()
+    with open(target_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    if "mean" not in data or "std" not in data:
+        raise ValueError(f"s2_stats.json at {target_path} must contain 'mean' and 'std' keys.")
+
+    mean = np.array(data["mean"], dtype=np.float32)
+    std = np.array(data["std"], dtype=np.float32)
+
+    if len(mean) != 3 or len(std) != 3:
+        raise ValueError("Expected exactly 3 mean and 3 std values for B04, B03, B02.")
+
+    if np.any(std <= 0):
+        raise ValueError("Sentinel-2 standard deviations must be positive.")
+
+    return mean, std
 
 
 def read_rgb_patch(patch_folder: Union[str, Path]) -> np.ndarray:
@@ -172,6 +194,8 @@ def preprocess_s2_patch(
     rgb = read_rgb_patch(patch_folder)
     resized = resize_s2_image(rgb, target_size=target_size)
     normalized = normalize_s2_image(resized, mean=mean, std=std)
+    if not np.isfinite(normalized).all():
+        raise ValueError("S2 preprocessing produced NaN or infinite values.")
     return torch.from_numpy(normalized).type(torch.float32)
 
 

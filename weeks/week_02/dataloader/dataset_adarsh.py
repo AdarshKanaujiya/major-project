@@ -23,23 +23,52 @@ import pandas as pd
 
 # Add parent directory to sys.path to allow importing from root-level config package
 import sys
-_parent_dir = str(Path(__file__).resolve().parent.parent)
-if _parent_dir not in sys.path:
-    sys.path.insert(0, _parent_dir)
+_week2_dir = Path(__file__).resolve().parent.parent
+_repo_root = _week2_dir.parent.parent
+for _p in [str(_week2_dir), str(_repo_root), str(_week2_dir / "preprocessing")]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from config.settings import (
-    DATA_DIR,
-    BASE_DIR,
-    SPLITS_DIR,
-    NORMALIZATION_MODE,
-    PRESERVE_RESOLUTION,
-    IMAGE_SIZE,
-    VV_BAND_SUFFIX,
-    VH_BAND_SUFFIX,
-    setup_logging,
-)
-from week4.sar_preprocessing import preprocess_sar_patch
-from preprocessing.preprocess_s2 import preprocess_patch as preprocess_s2_patch
+try:
+    from config.settings import (
+        DATA_DIR,
+        BASE_DIR,
+        SPLITS_DIR,
+        NORMALIZATION_MODE,
+        PRESERVE_RESOLUTION,
+        IMAGE_SIZE,
+        VV_BAND_SUFFIX,
+        VH_BAND_SUFFIX,
+        setup_logging,
+    )
+except ImportError:
+    BASE_DIR = _repo_root
+    DATA_DIR = _repo_root / "BigEarthNet-S1"
+    SPLITS_DIR = _repo_root / "results" / "local_pc" / "week_02" / "splits"
+    NORMALIZATION_MODE = "z_score"
+    PRESERVE_RESOLUTION = False
+    IMAGE_SIZE = (224, 224)
+    VV_BAND_SUFFIX = "_VV.tif"
+    VH_BAND_SUFFIX = "_VH.tif"
+
+    def setup_logging(name: str):
+        l = logging.getLogger(name)
+        if not l.handlers:
+            h = logging.StreamHandler()
+            h.setFormatter(logging.Formatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s"))
+            l.addHandler(h)
+        l.setLevel(logging.INFO)
+        return l
+
+try:
+    from sar_preprocessing_adarsh import preprocess_sar_patch
+except ImportError:
+    from preprocessing.sar_preprocessing_adarsh import preprocess_sar_patch
+
+try:
+    from preprocess_s2_adarsh import preprocess_patch as preprocess_s2_patch
+except ImportError:
+    from preprocessing.preprocess_s2_adarsh import preprocess_patch as preprocess_s2_patch
 
 logger = setup_logging("Dataset")
 

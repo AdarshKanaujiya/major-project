@@ -137,3 +137,16 @@ $$= \mathbf{189} \text{ (Total consolidated files on disk in SENTINEL-RS)}$$
   5. FAISS performs an Inner Product search (`IndexFlatIP`) against the gallery in ~1.2 ms, returning the top-10 nearest patch IDs and cosine similarity scores.
   6. The portal renders the top-10 retrieved scenes alongside similarity scores and land-cover labels.
 
+### Q10: Why is Sentinel-2 reflectance maintained in raw Digital Numbers (DN) without `/10000` scaling?
+- **Established Answer**: Physical GeoTIFF inspection confirmed that BigEarthNet-S2 L2A tiles are delivered as `uint16` integers with channel means in the 340–640 range. The canonical population statistics (`s2_stats.json`) were generated over 21,000 training patches in raw DN space ($\mu = [587.03, 613.28, 438.19]$). Applying common `/10000` scaling would mismatch the population statistics by a factor of $10^4$. Raw DN representation is strictly preserved.
+
+### Q11: Why is Sentinel-1 backscatter clipped to `[-25.0, 0.0] dB` without linear-to-dB conversion?
+- **Established Answer**: Physical inspection confirmed BigEarthNet-S1 GeoTIFFs already store calibrated Float32 values in decibels (dB), ranging from $-30\text{ dB}$ up to $+5\text{ dB}$. Converting with $10\log_{10}$ would corrupt the logarithmic data. Clipping to $[-25.0, 0.0]\text{ dB}$ is mandatory because the population statistics in `s1_stats.json` ($\mu_{VV}=-12.54, \mu_{VH}=-18.65$) were explicitly generated after clipping, which removes non-physical dropouts and extreme specular spikes.
+
+### Q12: Why are `train_split.csv`, `val_split.csv`, and `test_split.csv` canonical over `subset_30k.csv`?
+- **Established Answer**: Empirical partition analysis revealed that `train_split.csv` ($21,000$), `val_split.csv` ($4,500$), and `test_split.csv` ($4,500$) are $100\%$ disjoint from each other ($0$ overlap) and strictly adhere to the official BigEarthNet train/validation/test partitions in `metadata.parquet`. `subset_30k.csv` was an exploratory class-balanced subset created prior to split isolation and contains overlapping partitions.
+
+### Q13: Where does embedding L2 normalization occur in the Two-Tower retrieval pipeline?
+- **Established Answer**: L2 normalization occurs inside `InfoNCELoss.forward` via `F.normalize(..., dim=1)`. The `TwoTowerNetwork` projection head returns unnormalized 512-D linear features (norms ~5.6 to 5.8). During inference and FAISS indexing, `F.normalize` is explicitly applied prior to inner product search.
+
+

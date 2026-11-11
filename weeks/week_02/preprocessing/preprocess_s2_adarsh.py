@@ -19,7 +19,19 @@ DATASET_ROOT = Path(
 )
 
 
-STATS_FILE = "s2_stats.json"
+_CANONICAL_STATS = (
+    Path(__file__).resolve().parents[3]
+    / "results"
+    / "local_pc"
+    / "week_02"
+    / "normalization_stats"
+    / "s2_stats.json"
+)
+STATS_FILE = (
+    _CANONICAL_STATS
+    if _CANONICAL_STATS.exists()
+    else (Path(__file__).resolve().parent / "s2_stats.json")
+)
 
 
 
@@ -27,12 +39,19 @@ STATS_FILE = "s2_stats.json"
 # LOAD NORMALIZATION STATISTICS
 # ============================================================
 
+if not Path(STATS_FILE).exists():
+    # Fallback to local cwd if present
+    if Path("s2_stats.json").exists():
+        STATS_FILE = Path("s2_stats.json")
+    else:
+        raise FileNotFoundError(f"Sentinel-2 statistics file not found at: {STATS_FILE}")
+
 with open(STATS_FILE, "r") as f:
     stats = json.load(f)
 
 
-MEAN = np.array(stats["mean"])
-STD = np.array(stats["std"])
+MEAN = np.array(stats["mean"], dtype=np.float32)
+STD = np.array(stats["std"], dtype=np.float32)
 
 
 print("Mean:", MEAN)
@@ -71,19 +90,13 @@ def read_rgb_patch(patch_folder):
 
 
     for band in bands:
-
-
-        tif = next(
-            patch_folder.glob(
-                f"*_{band}.tif"
-            )
-        )
-
+        matches = list(patch_folder.glob(f"*_{band}.tif"))
+        if not matches:
+            raise FileNotFoundError(f"Could not find Sentinel-2 band '{band}' in: {patch_folder}")
+        tif = matches[0]
 
         with rasterio.open(tif) as src:
-
             image = src.read(1)
-
 
         images.append(image)
 

@@ -390,11 +390,145 @@ During previous turns, several tool and environment boundary anomalies were dete
 
 | Component | Canonical | Key Reason |
 | :--- | :--- | :--- |
-| S2 Preprocessing | `preprocess_s2_meet.py` | Correct channel order, population stats, full validation |
-| SAR Preprocessing | `sar_preprocessing_adarsh.py` | Clip + z-score + NaN guard; no broken imports |
-| Paired Dataset | `paired_bigearthnet_dataset_meet.py` | No broken imports; correct preprocessing imports |
-| DataLoader | `dataloader_meet.py` | No `week4` imports; canonical CSV paths |
+| S2 Preprocessing | `preprocess_s2_jainam.py` / `meet.py` | Direct B04-B03-B02 order, population Z-score using verified `s2_stats.json`, NaN guard |
+| SAR Preprocessing | `sar_preprocessing_adarsh.py` | Clip [-25, 0] dB + z-score + NaN guard; self-contained |
+| Paired Dataset | `paired_bigearthnet_dataset_meet.py` | Robust 4-candidate directory resolution; deterministic 19-class label encoding |
+| DataLoader | `dataloader_meet.py` | Full batch preservation (`drop_last_train=False`), deterministic val shuffle |
 
+---
 
-### next step to solve issue from week2
-refer this audit for week2 file **[`audit_report\week2_audit_report`](SENTINEL-RS\shared\docs\audit_report\week2_audit_report.md)**
+## 11. Week 1 & 2 Empirical Revalidation and Approved Source Corrections (November 11, 2026)
+
+### 11.1 Empirical Dataset & Raster Ground Truth
+`[VERIFIED BY EXECUTION & DATA INSPECTION]`
+- **GeoTIFF Formats (Directly Inspected with `rasterio`)**:
+  - **Sentinel-1 SAR**: Stored as `float32` natively in **Decibels (dB)**. VH range $[-30.20, -6.05]\text{ dB}$; VV range $[-25.31, +5.20]\text{ dB}$. Outlier clipping to $[-25.0, 0.0]\text{ dB}$ verified mandatory before normalization. No linear-to-dB conversion permitted.
+  - **Sentinel-2 Optical**: Stored as `uint16` in **raw Digital Numbers (DN)**. Mean range $341 - 638\text{ DN}$, matching `s2_stats.json` ($\mu = [587.03, 613.28, 438.19]$). No $/10000$ scaling permitted.
+- **Split Integrity & Zero Leakage**:
+  - `train_split.csv` ($21,000$), `val_split.csv` ($4,500$), `test_split.csv` ($4,500$).
+  - Overlap between train, val, and test: **Strictly 0**.
+  - All training patches originate strictly from `metadata.parquet['split'] == 'train'`.
+  - Statistics `s1_stats.json` and `s2_stats.json` were accumulated globally over all $302,400,000$ pixels of `train_split.csv` with zero validation/test leakage.
+- **Quarantined Patches**:
+  - `metadata.parquet` (480,038 patches) has 0 seasonal snow and 0 cloud/shadow patches.
+  - `metadata_for_patches_with_snow_cloud_or_shadow.parquet` (69,450 patches) is 100% disjoint from `metadata.parquet`.
+
+### 11.2 Approved Source Code Corrections Applied
+All 15 target source files were backed up in `weeks/week_02/.backup_pre_correction/` with SHA-256 hashes recorded before editing:
+1. `preprocess_s2_fateh.py`: Inverted band order `("B02", "B03", "B04")` fixed to `("B04", "B03", "B02")`; per-patch normalization replaced with population Z-score using canonical `s2_stats.json`.
+2. `sar_preprocessing_fateh.py`: Added $[-25.0, 0.0]\text{ dB}$ clipping; replaced per-patch normalization with population Z-score using canonical `s1_stats.json`.
+3. `preprocess_s2_meet.py`: Removed silent fallback to divergent hardcoded stats; explicitly resolves canonical `s2_stats.json` and raises `FileNotFoundError` if missing; added `np.isfinite` guard.
+4. `preprocess_s2_jainam.py`: Corrected `STATS_PATH` resolution to canonical `s2_stats.json`.
+5. `preprocess_s2_adarsh.py`: Corrected `STATS_FILE` resolution to canonical `s2_stats.json`; added safe band lookup and std division guard.
+6. `sar_preprocessing_adarsh.py`: Corrected `STATS_PATH` depth resolution to canonical `s1_stats.json`.
+7. `sar_preprocessing_jainam.py`: Corrected `STATS_PATH` depth resolution to canonical `s1_stats.json`.
+8. `sar_preprocessing_meet.py`: Provided self-contained constants and canonical stats path fallback; fixed `NORMALIZATION_MODE = "z-score"`.
+9. `dataset_adarsh.py`: Corrected broken `week4` imports to local Week 2 preprocessor modules.
+10. `dataloader_adarsh.py`: Corrected broken `week4.dataset` import to `dataset_adarsh`; updated default CSV paths to canonical `SPLITS_DIR`.
+11. `paired_bigearthnet_dataset_meet.py`: Provided self-contained constants; updated imports to local Week 2 preprocessors.
+12. `dataset_meet.py`: Provided self-contained constants; updated imports to local Week 2 preprocessors.
+13. `dataloader_meet.py`: Updated dataset import from `dataset_meet`; updated default CSV paths to canonical `SPLITS_DIR`.
+14. `dataset_fateh.py`: Provided self-contained constants; updated imports to local Week 2 preprocessors.
+15. `dataloader_fateh.py`: Updated dataset import from `dataset_fateh`; updated default CSV paths to canonical `SPLITS_DIR`.
+
+### 11.3 Multi-Level Validation Results
+`[VERIFIED BY EXECUTION]`
+1. **Compilation Check**: `python -m py_compile` passed across all 15 files with 0 errors.
+2. **Import Smoke Test**: All 15 modules imported cleanly via standard Python import mechanism.
+3. **Preprocessing Test on Real GeoTIFFs**:
+   - All four S2 preprocessors produced: shape `(3, 224, 224)`, `finite=True`, range `[-0.68, 2.41]`.
+   - All four SAR preprocessors produced: shape `(2, 224, 224)`, `finite=True`, range `[-2.34, 2.87]`.
+4. **DataLoader Real-Batch Test**:
+   - All three DataLoaders (`dataloader_meet`, `dataloader_adarsh`, `dataloader_fateh`) initialized 21,000 train / 4,500 val samples and yielded valid real batches:
+     `SAR: torch.Size([4, 2, 224, 224])`, `MS: torch.Size([4, 3, 224, 224])`, `Labels: torch.Size([4, 19])`, `IDs: 4`.
+5. **Model Interface Compatibility**:
+   - Real batch passed through Two-Tower ResNet-50 and InfoNCE loss:
+     `SAR Embedding: torch.Size([4, 512])`, `MS Embedding: torch.Size([4, 512])`, `Loss: 1.3863 (finite)`.
+   - L2 normalization confirmed inside `InfoNCELoss.forward` via `F.normalize(..., dim=1)`. Raw projection head outputs unnormalized features.
+
+### 11.4 Acceptance Status
+- **Week 1**: Accepted with Qualifications (CWD path cleanup deferred to HPC preparation).
+- **Week 2**: **SCIENTIFICALLY VALIDATED & ACCEPTED FOR CANONICAL PIPELINE**.
+- **PARAM SHAVAK Staging**: Ready, awaiting explicit user authorization.
+
+---
+
+## 12. Final Numerical Consistency, Checkpoint Compatibility & PARAM SHAVAK Staging (November 11, 2026)
+
+### 12.1 Final Numerical Cross-Contributor Equivalence
+\[VERIFIED BY EXECUTION]\
+- **Sentinel-2 Multispectral**:
+  - Adarsh vs Meet (PyTorch \F.interpolate\): MaxAbsDiff = **0.000000e+00**, MeanAbsDiff = **0.000000e+00** (bitwise identical).
+  - Jainam vs Fateh (PIL \Image.resize\): MaxAbsDiff = **0.000000e+00**, MeanAbsDiff = **0.000000e+00** (bitwise identical).
+  - PyTorch vs PIL: Difference bounded by single-precision floating point coordinate rounding (< 1.0e-06).
+- **Sentinel-1 SAR**:
+  - Adarsh vs Meet (PyTorch \F.interpolate\): MaxAbsDiff = **0.000000e+00**, MeanAbsDiff = **0.000000e+00** (bitwise identical).
+  - Jainam vs Fateh (PIL \Image.resize\): MaxAbsDiff <= 5.96e-07, MeanAbsDiff <= 9.77e-08 (float32 mantissa precision limit).
+
+### 12.2 InfoNCE Loss Investigation & Mathematical Ground Truth
+\[VERIFIED BY MATHEMATICAL DERIVATION & EXECUTION]\
+- **Untrained Random Init Loss = 1.386601**:
+  - Output projections are unnormalized in \TwoTowerNetwork\ (norms ~50-130).
+  - \InfoNCELoss.forward\ applies \F.normalize(..., dim=1)\, projecting embeddings to the 512-D unit hypersphere.
+  - On random weights, positive and negative pairs have near-identical cosine similarities (~ -0.013).
+  - Temperature \	au = 0.07\ scales logits uniformly to ~ -0.18.
+  - Softmax probability over batch B=4 is uniform \P = 1/4\.
+  - Theoretical chance entropy: \-\ln(1/4) = \ln(4) = 1.386294...\. Difference is 3.06e-04.
+  - Conclusion: 1.3863 is the exact chance baseline for B=4, not a trained retrieval loss.
+
+### 12.3 Historical Checkpoint Compatibility (\est_model-v1.ckpt\)
+\[VERIFIED BY STRICT LOAD & INFERENCE]\
+- Checkpoint: \shared/models/best_model-v1.ckpt\ (598.95 MB, 644 parameter tensors).
+- Stripping PyTorch Lightning \
+etwork.\ prefix yielded **0 missing keys and 0 unexpected keys** against \TwoTowerNetwork\.
+- Real batch inference (B=4):
+  - Output embeddings: Shape \(4, 512)\, dtype \loat32\, completely finite.
+  - **Positive pairs (diagonal)**: \[0.9329, 0.9287, 0.7922, 0.8586]\ (Mean: **0.8781**).
+  - **Negative pairs (off-diagonal)**: Range \[-0.3509, +0.2152]\ (Mean: **-0.0952**).
+  - \Diagonal > Off-diagonal: True\ for all pairs.
+  - **Trained InfoNCE Loss**: **0.000048** (down from 1.3866, 99.996% reduction).
+
+### 12.4 Resolved Report Issues & Recorded Audit Qualifications
+1. **Off-Diagonal Cosine Similarity Mean**: Recalculated accurately from the 12 off-diagonal elements of the trained similarity matrix: sum = -1.1421, mean = **-0.0952** (corrected from previous run-variation value -0.0898).
+2. **Geographic Tile Coverage**: The 8 tested patches represent **7 unique MGRS tiles** (\T29UNB\, \T29SNC\, \T35VNL\, \T29UPU\, \T29UPV\, \T34TFN\, \T35VPK\), as tile \T35VNL\ was tested on two separate patches (\43_10\ and \44_11\). All 8 samples produced 100% finite tensors.
+3. **Embedding Divergence Qualification**: While PyTorch and PIL preprocessors match at the pixel level within <= 1.0e-06, full assertion of zero embedding divergence on trained models requires evaluating both tensors through the identical checkpoint.
+4. **Local-Subset vs. Complete Dataset**: The existing normalization statistics (\s1_stats.json\, \s2_stats.json\) represent the 21,000-patch local PC training split. They must NOT be treated as full-dataset statistics. Full-dataset statistics must be recomputed on PARAM SHAVAK using the complete training split.
+
+### 12.5 Provenance Verification & Staging Outcome
+- Provenance confirmed: Staged files originated from canonical repository \C:\Users\hp\out\major project\SENTINEL-RS\weeks\week_01\ and \week_02\.
+- Staged into \param_shavak/week_01/\: 7 audited source files. Marked as \AUDITED — HPC PATH ADAPTATION PENDING\.
+- Staged into \param_shavak/week_02/\: 15 verified source files across Preprocessing and DataLoader. All SHA-256 hashes matched canonical sources.
+- No historical local artifacts or original member repositories were modified or moved.
+
+---
+
+## 13. Local HPC-Readiness Preparation & Operational Pivot (November 11, 2026)
+
+### 13.1 Operational Context & Constraint
+`[RECORDED INVARIANT]`
+- **PARAM SHAVAK Inaccessible**: Due to temporary infrastructure unavailability, remote SSH sessions, cluster commands, GPU benchmarks, and full-dataset transfers are paused.
+- **Operational Strategy**: Complete the final, integrated, and scientifically validated source code across Weeks 1 to 5 locally, establish environment portability, and generate all deployment/SLURM scripts in advance of restored access.
+- **HPC Reference Specification (Planning Only)**: Hostname `PS-BOSS-OS`, Linux OS, ~12 TB storage under `/home`, NVIDIA RTX 5000 Ada GPU (unverified live system parameters).
+
+### 13.2 Centralized Portable Configuration
+`[VERIFIED IN SOURCE CODE & TESTED]`
+- Authored canonical `shared/config/settings.py`:
+  - Dynamically resolves `PROJECT_ROOT`, `RESULTS_DIR`, `SPLITS_DIR`, `STATS_DIR`, `S1_DIR`, and `S2_DIR`.
+  - Seamlessly toggles between local PC (`results/local_pc/`) and cluster mode (`param_shavak/results/`) via `SENTINEL_ENV` environment variable.
+  - Enshrines canonical constants: `IMAGE_SIZE = (224, 224)`, `S1_CLIP_MIN = -25.0 dB`, `S1_CLIP_MAX = 0.0 dB`, `NUM_CLASSES = 19`, `EMBEDDING_DIM = 512`, `TEMPERATURE = 0.07`.
+  - Authored `.env.example` at repository root.
+
+### 13.3 Linux / HPC Cluster Environment Specifications
+`[PREPARED & VERIFIED]`
+- `shared/config/requirements_hpc.txt`: Explicit pip requirements with `faiss-gpu`, `rasterio`, and `torch>=2.2.0`.
+- `shared/config/environment_hpc.yml`: Full Conda environment definition targeting CUDA 12.1 and GDAL on Linux x86_64.
+
+### 13.4 Full-Dataset Automation & SLURM Workflow
+`[PREPARED & STAGED IN param_shavak/scripts/]`
+- `generate_full_dataset_splits_and_stats.py`: Automated pipeline to filter cloud patches, generate disjoint official splits (`train`, `val`, `test`), and accumulate global population mean/std strictly over the full training split.
+- SLURM batch job scripts created for PARAM SHAVAK:
+  1. `01_compute_full_dataset_stats.sh` (16 CPUs, 64 GB RAM, 12h)
+  2. `02_train_two_tower_hpc.sh` (1 GPU RTX 5000 Ada, 16 CPUs, 64 GB RAM, 48h)
+  3. `03_extract_embeddings_and_eval.sh` (1 GPU RTX 5000 Ada, 16 CPUs, 64 GB RAM, 12h)
+  4. `run_all_hpc.sh`: Orchestrates automated job dependencies via `sbatch --dependency=afterok`.
+- Pre-flight checklist established in `shared/docs/project_plans_and_audits/PARAM_SHAVAK_MIGRATION_CHECKLIST.md`.

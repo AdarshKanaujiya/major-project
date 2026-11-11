@@ -29,19 +29,52 @@ _parent_dir = str(Path(__file__).resolve().parent.parent)
 if _parent_dir not in sys.path:
     sys.path.insert(0, _parent_dir)
 
-from config.settings import (
-    IMAGE_SIZE,
-    PRESERVE_RESOLUTION,
-    NORMALIZATION_MODE,
-    S1_STATS_PATH,
-    VV_BAND_SUFFIX,
-    VH_BAND_SUFFIX,
-    VV_CLIP_RANGE,
-    VH_CLIP_RANGE,
-    VV_ZSCORE_STATS,
-    VH_ZSCORE_STATS,
-    setup_logging,
-)
+try:
+    from config.settings import (
+        IMAGE_SIZE,
+        PRESERVE_RESOLUTION,
+        NORMALIZATION_MODE,
+        S1_STATS_PATH,
+        VV_BAND_SUFFIX,
+        VH_BAND_SUFFIX,
+        VV_CLIP_RANGE,
+        VH_CLIP_RANGE,
+        VV_ZSCORE_STATS,
+        VH_ZSCORE_STATS,
+        setup_logging,
+    )
+except ImportError:
+    IMAGE_SIZE = (224, 224)
+    PRESERVE_RESOLUTION = False
+    NORMALIZATION_MODE = "z-score"
+    _CANONICAL = (
+        Path(__file__).resolve().parents[3]
+        / "results"
+        / "local_pc"
+        / "week_02"
+        / "normalization_stats"
+        / "s1_stats.json"
+    )
+    S1_STATS_PATH = (
+        _CANONICAL
+        if _CANONICAL.exists()
+        else (Path(__file__).resolve().parent / "s1_stats.json")
+    )
+    VV_BAND_SUFFIX = "_VV.tif"
+    VH_BAND_SUFFIX = "_VH.tif"
+    VV_CLIP_RANGE = (-25.0, 0.0)
+    VH_CLIP_RANGE = (-25.0, 0.0)
+    VV_ZSCORE_STATS = (-12.543624, 4.776860)
+    VH_ZSCORE_STATS = (-18.648693, 4.358705)
+
+    def setup_logging(name: str):
+        l = logging.getLogger(name)
+        if not l.handlers:
+            h = logging.StreamHandler()
+            h.setFormatter(logging.Formatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s"))
+            l.addHandler(h)
+        l.setLevel(logging.INFO)
+        return l
 
 logger = setup_logging("SAR_Preprocessing")
 

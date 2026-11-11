@@ -15,7 +15,19 @@ from PIL import Image
 # PATH TO S2 NORMALIZATION STATISTICS
 # ============================================================
 
-STATS_PATH = Path(__file__).resolve().parent / "s2_stats.json"
+_CANONICAL_STATS = (
+    Path(__file__).resolve().parents[3]
+    / "results"
+    / "local_pc"
+    / "week_02"
+    / "normalization_stats"
+    / "s2_stats.json"
+)
+STATS_PATH = (
+    _CANONICAL_STATS
+    if _CANONICAL_STATS.exists()
+    else (Path(__file__).resolve().parent / "s2_stats.json")
+)
 
 
 # ============================================================

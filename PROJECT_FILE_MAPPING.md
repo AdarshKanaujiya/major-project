@@ -231,3 +231,35 @@ This document provides the definitive trace of all code, configuration, data spl
 
 ---
 *Report verified and finalized for SENTINEL-RS.*
+---
+
+## 4. Staged PARAM SHAVAK Implementations (Controlled Staging)
+
+The following files have been copied into \param_shavak/\ for HPC preparation following empirical audit and validation. Canonical provenance is traced directly to the consolidated \weeks/\ implementations:
+
+| Staged Path | Source Path (\weeks/\) | Author | SHA-256 (First 12) | Stage Status | Notes |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| \param_shavak/week_01/README.md\ | N/A | Central | N/A | Staged Guide | Documents pending HPC path adaptation |
+| \param_shavak/week_01/data_exploration/dataset_exploration_meet.py\ | \weeks/week_01/data_exploration/dataset_exploration_meet.py\ | Meet | E8BA60077150 | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/data_exploration/explore_metadata_adarsh.py\ | \weeks/week_01/data_exploration/explore_metadata_adarsh.py\ | Adarsh | DA10ABE29EC8 | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/data_exploration/explore_metadata_jainam.py\ | \weeks/week_01/data_exploration/explore_metadata_jainam.py\ | Jainam | 000B1F46BBD3 | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/data_exploration/filter_clean_data_adarsh.py\ | \weeks/week_01/data_exploration/filter_clean_data_adarsh.py\ | Adarsh | 3C7E2F93B4AA | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/data_exploration/label_analysis_adarsh.py\ | \weeks/week_01/data_exploration/label_analysis_adarsh.py\ | Adarsh | 2BE281D880B4 | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/inspection/inspect_dataset_meet.py\ | \weeks/week_01/inspection/inspect_dataset_meet.py\ | Meet | 0A6F8BB5C9AE | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_01/inspection/view_random_images_jainam.py\ | \weeks/week_01/inspection/view_random_images_jainam.py\ | Jainam | 5FD1CAFAFCA2 | Audited Reference | CWD path adaptation pending |
+| \param_shavak/week_02/README.md\ | N/A | Central | N/A | Staged Guide | Invariant on full-dataset stats |
+| \param_shavak/week_02/preprocessing/preprocess_s2_fateh.py\ | \weeks/week_02/preprocessing/preprocess_s2_fateh.py\ | Fateh | 6005F24A970E | Verified Staging | B04/B03/B02, population Z-score |
+| \param_shavak/week_02/preprocessing/sar_preprocessing_fateh.py\ | \weeks/week_02/preprocessing/sar_preprocessing_fateh.py\ | Fateh | C274A104E62F | Verified Staging | [-25, 0] dB clip, population Z-score |
+| \param_shavak/week_02/preprocessing/preprocess_s2_meet.py\ | \weeks/week_02/preprocessing/preprocess_s2_meet.py\ | Meet | 36E922652D47 | Verified Staging | Canonical stats, no silent fallback |
+| \param_shavak/week_02/preprocessing/preprocess_s2_jainam.py\ | \weeks/week_02/preprocessing/preprocess_s2_jainam.py\ | Jainam | B71A09EA38A1 | Verified Staging | Corrected stats resolution |
+| \param_shavak/week_02/preprocessing/sar_preprocessing_adarsh.py\ | \weeks/week_02/preprocessing/sar_preprocessing_adarsh.py\ | Adarsh | 7DD94A30CFC5 | Verified Staging | Corrected stats resolution |
+| \param_shavak/week_02/preprocessing/sar_preprocessing_jainam.py\ | \weeks/week_02/preprocessing/sar_preprocessing_jainam.py\ | Jainam | C581576A750B | Verified Staging | Corrected stats resolution |
+| \param_shavak/week_02/preprocessing/sar_preprocessing_meet.py\ | \weeks/week_02/preprocessing/sar_preprocessing_meet.py\ | Meet | 21476EB47DD9 | Verified Staging | Self-contained constants, z-score |
+| \param_shavak/week_02/preprocessing/preprocess_s2_adarsh.py\ | \weeks/week_02/preprocessing/preprocess_s2_adarsh.py\ | Adarsh | 1818487581EC | Verified Staging | Band resolution guard, std div guard |
+| \param_shavak/week_02/dataloader/dataset_adarsh.py\ | \weeks/week_02/dataloader/dataset_adarsh.py\ | Adarsh | 113013B44A89 | Verified Staging | Resolved week4 import to week_02 |
+| \param_shavak/week_02/dataloader/dataloader_adarsh.py\ | \weeks/week_02/dataloader/dataloader_adarsh.py\ | Adarsh | 6573366765C4 | Verified Staging | Resolved week4 import, canonical splits |
+| \param_shavak/week_02/dataloader/paired_bigearthnet_dataset_meet.py\ | \weeks/week_02/dataloader/paired_bigearthnet_dataset_meet.py\ | Meet | 9E562B4BD331 | Verified Staging | Self-contained constants, 4 candidates |
+| \param_shavak/week_02/dataloader/dataset_meet.py\ | \weeks/week_02/dataloader/dataset_meet.py\ | Meet | 166C47C94644 | Verified Staging | Self-contained constants |
+| \param_shavak/week_02/dataloader/dataloader_meet.py\ | \weeks/week_02/dataloader/dataloader_meet.py\ | Meet | D8188B9B08FF | Verified Staging | Canonical splits, drop_last=False |
+| \param_shavak/week_02/dataloader/dataset_fateh.py\ | \weeks/week_02/dataloader/dataset_fateh.py\ | Fateh | 8AC2F83E2610 | Verified Staging | Self-contained constants |
+| \param_shavak/week_02/dataloader/dataloader_fateh.py\ | \weeks/week_02/dataloader/dataloader_fateh.py\ | Fateh | 2DF52B5101BD | Verified Staging | Canonical splits, drop_last=False |

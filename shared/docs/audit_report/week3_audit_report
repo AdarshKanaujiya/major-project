@@ -1,0 +1,389 @@
+# SENTINEL-RS — Week 3 Comparative Audit Report
+
+**Status:** PROPOSED — Awaiting user approval before any source modifications.  
+**Scope:** Read-only inspection of all 15 Week 3 `.py` files. No code has been changed.
+
+---
+
+## 1. Week 3 File Inventory (15 files)
+
+| File | Lines | Contributor | Role |
+|------|-------|-------------|------|
+| `embeddings/baseline_extractor_fateh.py` | 66 | Fateh | ResNet50 2-channel (SAR) extractor class |
+| `embeddings/faiss_baseline_fateh.py` | 66 | Fateh | FAISS index build & single query test |
+| `embeddings/test_faiss_fateh.py` | 53 | Fateh | FAISS correctness smoke test (synthetic data) |
+| `embeddings/generate_baseline_embeddings_adarsh.py` | 118 | Adarsh | MS embedding generation (val set) |
+| `embeddings/generate_s1_val_embeddings_meet.py` | 413 | Meet | SAR embedding generation (val set) |
+| `evaluation/build_results_table_adarsh.py` | 31 | Adarsh | Template CSV scaffold (all TBD) |
+| `evaluation/compute_map_adarsh.py` | 290 | Adarsh | Full mAP + Recall@K evaluation (all 4 modes) |
+| `evaluation/compute_map_week3_adarsh.py` | 189 | Adarsh | Revised mAP (IndexFlatIP, L2-normalised) |
+| `evaluation/evaluate_baseline_map_fateh.py` | 302 | Fateh | MS→MS mAP evaluation only (IndexFlatL2) |
+| `retrieval/baseline_retrieval_jainam.py` | 554 | Jainam | SAR→MS retrieval (exact pair match) |
+| `retrieval/baseline_ms_to_ms_retrieval_jainam.py` | 494 | Jainam | MS→MS (label-overlap Recall@K) |
+| `retrieval/baseline_ms_to_sar_retrieval_jainam.py` | 439 | Jainam | MS→SAR (exact pair match Recall@K) |
+| `retrieval/baseline_sar_to_sar_retrieval_jainam.py` | 511 | Jainam | SAR→SAR (label-overlap Recall@K) |
+| `visualization/generate_tsne_adarsh.py` | 164 | Adarsh | t-SNE plot of baseline embeddings |
+| `visualization/label_distribution_adarsh.py` | 69 | Adarsh | Label distribution bar chart |
+
+---
+
+## 2. Architecture — Baseline Embedding Model
+
+### 2.1 Fateh's `BaselineExtractor` (`baseline_extractor_fateh.py`)
+
+```python
+class BaselineExtractor(nn.Module):
+    def __init__(self, in_channels=2):
+        super().__init__()
+        base = resnet50(pretrained=True)   # ← DEPRECATED API
+        # Channel adapter: copies first `in_channels` columns of RGB conv1 weights
+        old_weight = base.conv1.weight.data  # (64, 3, 7, 7)
+        base.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        base.conv1.weight.data = old_weight[:, :in_channels, :, :]  # ← SCIENTIFICALLY INCORRECT
+```
+
+**Issues:**
+- `pretrained=True` is deprecated since PyTorch 0.13; produces a `UserWarning`. Should be `weights=ResNet50_Weights.DEFAULT`.
+- **Critical scientific defect**: the SAR channel adapter copies only the first 2 columns of the 3-channel pretrained RGB filter, discarding the third (B band) entirely. The standard practice is to **average** the 3 pretrained channels for a 2-channel initialization (or use the mean of all three). This gives a biased, not generalizable initialization. For a **baseline** (untrained) this affects initial embedding quality and reproducibility across PyTorch versions.
+
+### 2.2 Adarsh's MS embedding generation (`generate_baseline_embeddings_adarsh.py`)
+
+- Uses `ResNet50_Weights.DEFAULT` — ✅ correct modern API.
+- Imports `from preprocessing.preprocess_s2 import preprocess_patch, DATASET_ROOT` — ❌ **broken import**: there is no `preprocessing/preprocess_s2.py` in the canonical project. The canonical files are `preprocess_s2_adarsh.py` etc.
+- Despite broken import, the script **loads embeddings from an already-generated `.npy` file** when available; the import is only needed for the generation path.
+
+### 2.3 Meet's SAR embedding generation (`generate_s1_val_embeddings_meet.py`)
+
+- Imports from `config.settings` and `preprocessing.sar_preprocessing` and `models.resnet` — these are old per-repository paths that **will not resolve** relative to the canonical project root.
+- Critically, it imports `ResNet50S1Encoder` from `models.resnet` — a custom two-channel ResNet. This is **different** from Fateh's `BaselineExtractor` (column-copy) and from Adarsh's `resnet50(weights=DEFAULT)` (3-channel RGB). Which model was actually used to generate the historical SAR embeddings is unclear.
+- Despite broken imports the script is well-structured: 13-point verification suite, sanity mode, deterministic row-order enforcement, atomic writes.
+- Uses `psutil` for RAM tracking — adds a dependency not in `requirements.txt`.
+
+---
+
+## 3. FAISS Index Type — Critical Inconsistency
+
+| Script | FAISS Index | L2-Normalized? | Mode |
+|--------|-------------|----------------|------|
+| `faiss_baseline_fateh.py` | `IndexFlatL2` | No | MS→MS test |
+| `test_faiss_fateh.py` | `IndexFlatL2` | No | Synthetic smoke test |
+| `evaluate_baseline_map_fateh.py` | `IndexFlatL2` | No | MS→MS mAP |
+| `baseline_retrieval_jainam.py` | `IndexFlatL2` | No | SAR→MS cross-modal |
+| `baseline_ms_to_ms_retrieval_jainam.py` | `IndexFlatL2` | No | MS→MS same-modal |
+| `baseline_ms_to_sar_retrieval_jainam.py` | `IndexFlatL2` | No | MS→SAR cross-modal |
+| `baseline_sar_to_sar_retrieval_jainam.py` | `IndexFlatL2` | No | SAR→SAR same-modal |
+| `compute_map_week3_adarsh.py` | `IndexFlatIP` | **Yes** | All 4 modes |
+
+**Finding:** `compute_map_week3_adarsh.py` is the **only** script that L2-normalizes embeddings before indexing with `IndexFlatIP` (cosine similarity). All other scripts use raw unnormalized embeddings with L2 distance. For 2048-D ResNet features this affects ranking. The script name `week3` suggests this was a later revision by Adarsh. This is the **scientifically more correct** approach and aligns with Week 5 practice.
+
+---
+
+## 4. Relevance Definition — Critical Inconsistency
+
+This is the most consequential inconsistency because it makes historical metrics **incomparable across scripts**.
+
+| Script | Cross-Modal Relevance | Same-Modal Relevance |
+|--------|-----------------------|----------------------|
+| `baseline_retrieval_jainam.py` | **Exact pair match** (1 iff exact paired SAR found) | N/A |
+| `baseline_ms_to_sar_retrieval_jainam.py` | **Exact pair match** | N/A |
+| `baseline_ms_to_ms_retrieval_jainam.py` | N/A | Label-overlap |
+| `baseline_sar_to_sar_retrieval_jainam.py` | N/A | Label-overlap |
+| `compute_map_adarsh.py` | **Label-overlap** | Label-overlap |
+| `compute_map_week3_adarsh.py` | **Exact pair match** (via `paired_ids`) | Label-overlap |
+| `evaluate_baseline_map_fateh.py` | N/A (MS-only) | **Label-overlap** |
+
+**Key conflict:** Jainam's cross-modal scripts use exact-pair match; Adarsh's original `compute_map_adarsh.py` uses label-overlap for cross-modal. These produce fundamentally different numbers:
+- Exact-pair: extremely low (1 in 4500 gallery items is paired), so Recall@1 ~0.2–0.5% is expected.
+- Label-overlap: much higher (many gallery items share labels), so Recall@1 can reach 15–90%.
+
+**The historical `baseline_results_table.csv` mixes results from both definitions:**
+- Cross-modal figures (SAR→MS: R@1=0.18%, MS→SAR: R@1=0.6%) → exact pair match (Jainam's scripts).
+- Same-modal figures (SAR→SAR: R@1=89.71%, MS→MS: R@1=94.4%) → label-overlap.
+- `baseline_results_summary.txt` uses different (lower) numbers, suggesting it was generated from yet another run with exact-pair match for all modes.
+
+**Canonical definition for SENTINEL-RS:**
+- **Cross-modal retrieval**: exact paired patch match — scientifically correct (the goal is to retrieve the geographically co-located pair).
+- **Same-modal retrieval**: label-overlap — standard for semantic retrieval evaluation.
+- `compute_map_week3_adarsh.py` implements both correctly and should be the **canonical evaluation script**.
+
+---
+
+## 5. Embedding ID Format — Important Inconsistency
+
+| Script | SAR ID format | MS ID format |
+|--------|---------------|--------------|
+| `generate_baseline_embeddings_adarsh.py` | — | `patch_id` (S2 patch ID, e.g. `S2A_MSIL2A_...`) |
+| `generate_s1_val_embeddings_meet.py` | `s1_name` (Sentinel-1 folder name) | — |
+| `baseline_retrieval_jainam.py` | reads `baseline_val_s1_patch_ids.txt` | reads `baseline_val_ms_patch_ids.txt` |
+| `baseline_ms_to_sar_retrieval_jainam.py` | reads `baseline_val_s1_patch_ids.txt` | reads `baseline_val_patch_ids.txt` |
+| `compute_map_week3_adarsh.py` | reads `baseline_val_s1_patch_ids.txt` | reads `baseline_val_ms_patch_ids.txt` |
+
+**Critical path inconsistency** in Jainam's MS→SAR script:
+- MS IDs loaded from `baseline_val_patch_ids.txt` (no `ms_` prefix)
+- Other scripts use `baseline_val_ms_patch_ids.txt`
+
+The SAR ID format in Meet's output is `s1_name` (Sentinel-1 names), which is different from `patch_id` (S2 patch names). The cross-modal mapping depends on being able to look up the pair from `val_split.csv`. This should work if the retrieval scripts use `val_split.csv` to construct the mapping, which `compute_map_week3_adarsh.py` does correctly.
+
+> [!IMPORTANT]
+> The `s1_name` IDs in SAR embedding files must be treated as Sentinel-1 folder names, not S2 `patch_id` values. Any script doing a direct string match between SAR IDs and MS IDs in cross-modal retrieval will fail silently — the SAR gallery ID will never match a MS query ID because the naming conventions differ.
+
+---
+
+## 6. Path Hardcoding Issues
+
+All Week 3 scripts use relative paths (`outputs/embeddings/...`, `outputs/metadata/...`, `csvs/...`, `metadata.parquet`). These paths are relative to the script's **working directory**, not the project root. Scripts must be run from their respective week directory. This is consistent behaviour across all contributors but should be documented.
+
+| Jainam's MS ID path | `outputs/embeddings/baseline_val_patch_ids.txt` |
+| Adarsh's MS ID path | `outputs/embeddings/baseline_val_ms_patch_ids.txt` |
+
+This filename mismatch (`baseline_val_patch_ids.txt` vs `baseline_val_ms_patch_ids.txt`) means Jainam's MS→SAR script will fail with `FileNotFoundError` unless the file is renamed or symlinked.
+
+---
+
+## 7. Confirmed Defects Summary
+
+| ID | File | Defect | Severity |
+|----|------|--------|----------|
+| W3-D1 | `baseline_extractor_fateh.py` | SAR channel adapter copies first 2 of 3 RGB columns — should average all 3 | **Scientific** |
+| W3-D2 | `baseline_extractor_fateh.py` | `pretrained=True` deprecated API | Minor |
+| W3-D3 | `generate_baseline_embeddings_adarsh.py` | `from preprocessing.preprocess_s2 import ...` — broken import path | **Runtime** |
+| W3-D4 | `generate_s1_val_embeddings_meet.py` | `from config.settings import ...` and `from preprocessing.sar_preprocessing import ...` and `from models.resnet import ...` — broken imports (old repo paths) | **Runtime** |
+| W3-D5 | `generate_s1_val_embeddings_meet.py` | `psutil` dependency undeclared | Minor |
+| W3-D6 | `baseline_ms_to_sar_retrieval_jainam.py` | Loads MS IDs from `baseline_val_patch_ids.txt` (missing `ms_` prefix) | **Runtime/Data** |
+| W3-D7 | All Jainam retrieval + Fateh evaluation | `IndexFlatL2` on unnormalized 2048-D embeddings; should use `IndexFlatIP` on L2-normalized embeddings | **Scientific** |
+| W3-D8 | `compute_map_adarsh.py` | Uses label-overlap for cross-modal relevance — inconsistent with correct exact-pair definition | **Scientific** |
+| W3-D9 | `compute_map_week3_adarsh.py` | `start` variable (line 95) is referenced before assignment in `compute_metrics` | **Runtime bug** |
+| W3-D10 | Historical `baseline_results_table.csv` | Mixes exact-pair cross-modal and label-overlap same-modal results — metrics are not comparably defined | **Documentation** |
+
+### Detail on W3-D9 (runtime bug in `compute_map_week3_adarsh.py`):
+```python
+def compute_metrics(...):
+    max_k = max(top_k_list) + 1
+    D, I = gallery_index.search(query_emb, max_k)
+    elapsed = (time.time() - start) / len(query_emb) * 1000  # 'start' not defined here!
+```
+The variable `start` is referenced but it is defined at module-level scope later (line ~142+), not inside `compute_metrics`. This will silently succeed if `start` happens to be defined in module scope before the function is called, but is a latent naming bug — the timing is computed relative to program start, not to the index search.
+
+---
+
+## 8. Positive Findings (What Works Well)
+
+- **Meet's `generate_s1_val_embeddings_meet.py`**: Excellent engineering — 13-point verification suite, sanity mode, deterministic row-order enforcement, atomic writes, RAM tracking. If imports are fixed this is the most robust embedding generation script.
+- **Jainam's retrieval scripts**: Clean, well-documented, deterministic. ID alignment validation before retrieval prevents silent failures.
+- **Adarsh's `compute_map_week3_adarsh.py`**: Correctly L2-normalizes before `IndexFlatIP`, correctly uses exact-pair for cross-modal and label-overlap for same-modal. This is the reference design.
+- **Adarsh's `generate_tsne_adarsh.py`**: Saves exact patch IDs used for t-SNE — good provenance. Uses `max_iter` (not deprecated `n_iter`).
+
+---
+
+## 9. Canonical Integration Plan (Proposed)
+
+### Script Selection
+
+| Role | Canonical Script | Action Required |
+|------|-----------------|-----------------|
+| SAR embedding generation | `generate_s1_val_embeddings_meet.py` | Fix 3 import paths |
+| MS embedding generation | `generate_baseline_embeddings_adarsh.py` | Fix 1 import path |
+| SAR channel adapter init | `baseline_extractor_fateh.py` | Fix channel averaging; fix deprecated API |
+| All-mode evaluation | `compute_map_week3_adarsh.py` | Fix `start` variable bug |
+| MS→MS mAP only | `evaluate_baseline_map_fateh.py` | Retained as alternative; switch to `IndexFlatIP` |
+| Retrieval (all 3 modes) | Jainam's 3 retrieval scripts | Switch to `IndexFlatIP` + L2-normalize; fix MS IDs filename |
+| t-SNE | `generate_tsne_adarsh.py` | No changes needed |
+| Label distribution | `label_distribution_adarsh.py` | No changes needed |
+
+### Proposed Corrections (require user approval)
+
+1. **`baseline_extractor_fateh.py`** — Fix channel averaging:
+   ```python
+   # Replace column-copy with channel averaging:
+   base.conv1.weight.data = old_weight.mean(dim=1, keepdim=True).repeat(1, in_channels, 1, 1) / in_channels
+   # Actually the standard approach:
+   base.conv1.weight.data = old_weight[:, :in_channels, :, :].clone()
+   # OR average approach (more principled):
+   new_weight = old_weight.mean(dim=1, keepdim=True).expand_as(base.conv1.weight.data).clone()
+   base.conv1.weight.data.copy_(new_weight)
+   ```
+   Also update `pretrained=True` → `weights=ResNet50_Weights.DEFAULT`.
+
+2. **`generate_baseline_embeddings_adarsh.py`** — Fix import path to use canonical `preprocess_s2_adarsh.py`.
+
+3. **`generate_s1_val_embeddings_meet.py`** — Fix 3 import paths to canonical project structure:
+   - `config.settings` → `shared.config.settings` or inline constants
+   - `preprocessing.sar_preprocessing` → canonical `sar_preprocessing_meet.py`
+   - `models.resnet` → canonical model from Week 4
+
+4. **`compute_map_week3_adarsh.py`** — Fix `start` variable scope:
+   ```python
+   start = time.time()
+   D, I = gallery_index.search(query_emb, max_k)
+   elapsed = (time.time() - start) / len(query_emb) * 1000
+   ```
+
+5. **All Jainam retrieval scripts** — Add L2-normalization before `IndexFlatL2` search, or switch to `IndexFlatIP` for consistency with `compute_map_week3_adarsh.py`.
+
+6. **`baseline_ms_to_sar_retrieval_jainam.py`** — Fix MS IDs path: `baseline_val_patch_ids.txt` → `baseline_val_ms_patch_ids.txt`.
+
+---
+
+## 10. Historical Results Reconciliation
+
+The historical results in `results/local_pc/week_03/` reflect two different definitions:
+
+**`baseline_results_table.csv`** (mixed definitions):
+| Mode | R@1 | R@5 | R@10 | mAP |
+|------|-----|-----|------|-----|
+| SAR→MS (cross) | 0.18% | 0.60% | 1.13% | 0.40% |
+| MS→SAR (cross) | 0.60% | 1.71% | 2.67% | 1.12% |
+| SAR→SAR (same) | 89.71% | 99.22% | 99.71% | 90.78% |
+| MS→MS (same) | 94.40% | 99.60% | 99.78% | 94.71% |
+
+**`baseline_results_summary.txt`** (all exact-pair match, different run):
+| Mode | R@1 | R@5 | R@10 |
+|------|-----|-----|------|
+| SAR→MS | 0.22% | 0.49% | 0.82% |
+| MS→SAR | 0.49% | 1.51% | 2.13% |
+| SAR→SAR | 15.13% | 26.31% | 33.47% |
+| MS→MS | 18.64% | 31.58% | 39.67% |
+
+The dramatically lower same-modal figures in `baseline_results_summary.txt` confirm it used exact-pair match for all modes (not label-overlap), which is semantically incorrect for same-modal retrieval.
+
+> [!CAUTION]
+> Do not treat either historical result file as a validated baseline to reproduce. After corrections, re-run `compute_map_week3_adarsh.py` with fixed `start` variable to get the definitive baseline numbers.
+
+---
+
+## 11. Week 3 Integration Summary
+
+**Files requiring correction before integration:** 6 of 15  
+**Files usable as-is (after import path resolution):** 9 of 15  
+**Canonical evaluation script:** `compute_map_week3_adarsh.py` (after `start` fix)  
+**Canonical SAR embedding generation:** `generate_s1_val_embeddings_meet.py` (after import fixes)  
+**Canonical MS embedding generation:** `generate_baseline_embeddings_adarsh.py` (after import fix)  
+
+**Estimated impact of corrections:**
+- Cross-modal baseline metrics will be reproducible and consistent.
+- Same-modal baseline metrics will be higher (label-overlap is correct for semantic retrieval).
+- The t-SNE visualization needs no changes and can be re-run on corrected embeddings.
+
+---
+
+*Generated: Week 3 comparative audit — read-only inspection, no source files modified.*
+
+
+
+
+
+next prompt to be given to ai is:
+
+-----------------------------------------------------------------------
+# SENTINEL-RS — Week 3 Audit: Scientific Clarification Before Corrections
+
+**Status: READ-ONLY. No source modifications authorized.**
+
+The Week 3 comparative audit is complete. Before approving implementation changes, investigate the following unresolved scientific and architectural decisions.
+
+## 1. SAR ResNet50 channel adaptation
+
+Inspect:
+- `baseline_extractor_fateh.py`
+- `generate_s1_val_embeddings_meet.py`
+- Every referenced SAR encoder implementation.
+- Historical embedding-generation metadata and checkpoint provenance, where available.
+
+Establish:
+1. The exact SAR encoder architecture used by each implementation.
+2. Whether ImageNet pretrained weights were used.
+3. How the original three-channel convolution was adapted to two SAR channels.
+4. Which implementation generated the historical SAR embeddings.
+5. Whether the proposed channel-averaging strategy changes the historical embedding representation.
+
+Compare:
+- Existing first-two-channel initialization.
+- Mean-RGB initialization repeated across two SAR channels.
+
+Explain the mathematical differences and recommend an approach.
+
+Do not modify either implementation.
+
+## 2. FAISS metric decision
+
+Inspect every Week 3 embedding-generation and retrieval script, along with Week 5's retrieval implementation.
+
+Establish:
+- Whether embeddings are normalized during extraction or only during retrieval.
+- Whether historical embeddings are raw or normalized.
+- Whether the original L2 evaluation uses raw or normalized vectors.
+- Whether Week 5 consistently uses cosine similarity through normalized inner-product search.
+
+Provide a comparison of:
+1. Raw L2.
+2. Normalized L2.
+3. Normalized inner product.
+
+Explain which metric best serves the research objective and which historical results become incomparable after changing it.
+
+Do not assume raw L2 is a defect.
+
+## 3. Cross-modal pairing and relevance
+
+Inspect:
+- Official paired metadata.
+- Week 2 Dataset/DataLoader pairing logic.
+- All Week 3 evaluation scripts.
+- Week 5 relevance/evaluation logic.
+
+Verify that exact-pair relevance uses an explicit S1-to-S2 mapping and never relies on direct equality of differently formatted identifiers.
+
+Verify same-modal semantic relevance uses a consistent multi-label overlap definition.
+
+Check whether duplicate or missing pairs can distort Recall@K and mAP.
+
+Recommend one canonical relevance protocol for all four retrieval modes.
+
+## 4. Historical embedding provenance
+
+Investigate:
+- Historical SAR embeddings.
+- Historical MS embeddings.
+- Associated ID files.
+- Generation scripts.
+- Any available logs or metadata.
+
+Determine whether the two embedding sets were generated from compatible validation splits, matching patch order, and the intended model architectures.
+
+Do not infer provenance from filenames alone.
+
+## 5. Week 3 → Week 4 architecture relationship
+
+Compare the baseline ResNet50 encoders with the Week 4 Two-Tower model.
+
+Explain:
+- Which architectural differences are intentional.
+- Whether the baseline is frozen ImageNet feature extraction.
+- Whether Week 4 fine-tunes its backbones.
+- Whether the 2048-D baseline and 512-D trained embeddings are being evaluated consistently.
+- Whether the baseline comparison is scientifically fair.
+
+## Required output
+
+Produce a supplementary report containing:
+
+1. Verified architectural facts.
+2. Mathematical explanations.
+3. Confirmed inconsistencies.
+4. Decisions requiring research-level judgment.
+5. Recommended canonical methodology.
+6. Exact files affected by each eventual correction.
+7. Whether the proposed Week 3 canonical scripts remain appropriate.
+
+**Strict restrictions:**
+- No source code modifications.
+- No deletion, renaming or moving files.
+- Do not regenerate historical embeddings.
+- Do not overwrite historical metrics.
+- Do not claim provenance without evidence.
+- Preserve all contributor implementations until the final implementation decision.
+
+Finish with a recommendation on which corrections are safe to approve and which require further investigation.
+
+
+---------------------------------------------------------------------------

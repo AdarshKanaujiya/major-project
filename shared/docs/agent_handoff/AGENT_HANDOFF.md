@@ -6,6 +6,11 @@
 
 ## 1. Project Identity, Context & Mission
 
+> [!WARNING]
+> **TEMPORARY CLUSTER INACCESSIBILITY**:  
+> PARAM SHAVAK is currently unavailable via SSH. Do NOT attempt SSH logins, remote jobs, or GPU executions. Prioritize completing the end-to-end integrated source code (Weeks 1 to 5), centralized configuration, and deployment scripts locally on Windows/CPU first.
+
+
 ### 1.1 What SENTINEL-RS Is
 **SENTINEL-RS** is an applied machine learning and remote sensing retrieval research project developed by four undergraduate researchers. It tackles the **modality gap** between Synthetic Aperture Radar (SAR, Sentinel-1) and Optical/Multispectral imagery (MS, Sentinel-2). 
 - In remote sensing, SAR operates through clouds, precipitation, and darkness by transmitting microwave radar pulses, capturing physical surface geometry, roughness, and dielectric properties.
@@ -173,4 +178,3 @@ To ensure that knowledge is never lost across conversation resets or different A
 > 5. **Update file mappings** in `PROJECT_FILE_MAPPING.md` if any new file is created.
 
 *Never leave project knowledge solely in conversational chat memory.*
-

@@ -25,21 +25,48 @@ from typing import Dict, List, Any, Tuple, Optional, Union, Callable
 
 import pandas as pd
 
-# Add root directory to sys.path to allow imports from config and preprocessing
+# Add directory paths to sys.path to allow imports from config and preprocessing
 import sys
-_root_dir = str(Path(__file__).resolve().parent)
-if _root_dir not in sys.path:
-    sys.path.insert(0, _root_dir)
+_week2_dir = Path(__file__).resolve().parent.parent
+_repo_root = _week2_dir.parent.parent
+_cur_dir = Path(__file__).resolve().parent
 
-from config.settings import (
-    DATA_DIR,
-    BASE_DIR,
-    VV_BAND_SUFFIX,
-    VH_BAND_SUFFIX,
-    setup_logging,
-)
-from preprocessing.sar_preprocessing import preprocess_sar_patch
-from preprocessing.preprocess_s2 import preprocess_s2_patch
+for _p in [str(_week2_dir), str(_repo_root), str(_week2_dir / "preprocessing"), str(_cur_dir)]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+try:
+    from config.settings import (
+        DATA_DIR,
+        BASE_DIR,
+        VV_BAND_SUFFIX,
+        VH_BAND_SUFFIX,
+        setup_logging,
+    )
+except ImportError:
+    BASE_DIR = _repo_root
+    DATA_DIR = _repo_root / "BigEarthNet-S1"
+    VV_BAND_SUFFIX = "_VV.tif"
+    VH_BAND_SUFFIX = "_VH.tif"
+
+    def setup_logging(name: str):
+        l = logging.getLogger(name)
+        if not l.handlers:
+            h = logging.StreamHandler()
+            h.setFormatter(logging.Formatter("%(asctime)s - [%(name)s] - %(levelname)s - %(message)s"))
+            l.addHandler(h)
+        l.setLevel(logging.INFO)
+        return l
+
+try:
+    from sar_preprocessing_meet import preprocess_sar_patch
+except ImportError:
+    from preprocessing.sar_preprocessing_meet import preprocess_sar_patch
+
+try:
+    from preprocess_s2_meet import preprocess_s2_patch
+except ImportError:
+    from preprocessing.preprocess_s2_meet import preprocess_s2_patch
 
 logger = setup_logging("PairedDataset")
 
