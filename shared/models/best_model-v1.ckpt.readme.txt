@@ -1,0 +1,1 @@
+"The model checkpoint is too large for GitHub. Download the 598MB file from [https://drive.google.com/drive/folders/1yC2Uz5oDAb2bopdDQd1a36GzGhMiTwae?usp=drive_link] and place it in this folder before running testing."
