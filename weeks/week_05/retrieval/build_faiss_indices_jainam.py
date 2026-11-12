@@ -1,5 +1,5 @@
 """
-Week 5 - Build FAISS gallery indices.
+Week 5 - Build FAISS gallery indices (Scientific Revision).
 
 Builds two IndexFlatIP indices from the trained test embeddings:
     - SAR gallery
@@ -11,29 +11,39 @@ is equivalent to cosine similarity.
 
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
 
-import faiss
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from shared.config.settings import RESULTS_DIR
+except ImportError:
+    RESULTS_DIR = PROJECT_ROOT / "results" / "local_pc"
+
+try:
+    import faiss
+except ImportError:
+    faiss = None
+
 import numpy as np
 
 
 # ============================================================
-# PATHS
+# DEFAULT PATHS
 # ============================================================
 
-EMBEDDINGS_DIR = Path("outputs/embeddings")
-INDEX_DIR = Path("outputs/indices")
+DEFAULT_EMBEDDINGS_DIR = RESULTS_DIR / "week_05" / "trained_embeddings"
+DEFAULT_INDEX_DIR = RESULTS_DIR / "week_05" / "faiss_indices" / "runs"
 
-SAR_EMBEDDINGS = (
-    EMBEDDINGS_DIR / "trained_test_sar_embeddings.npy"
-)
-
-MS_EMBEDDINGS = (
-    EMBEDDINGS_DIR / "trained_test_ms_embeddings.npy"
-)
-
-SAR_INDEX = INDEX_DIR / "sar_gallery.index"
-MS_INDEX = INDEX_DIR / "ms_gallery.index"
+DEFAULT_SAR_EMBEDDINGS = DEFAULT_EMBEDDINGS_DIR / "trained_test_sar_embeddings.npy"
+DEFAULT_MS_EMBEDDINGS = DEFAULT_EMBEDDINGS_DIR / "trained_test_ms_embeddings.npy"
+DEFAULT_SAR_INDEX = DEFAULT_INDEX_DIR / "sar_gallery.index"
+DEFAULT_MS_INDEX = DEFAULT_INDEX_DIR / "ms_gallery.index"
 
 
 # ============================================================
@@ -149,11 +159,46 @@ def build_index(
 # ============================================================
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Week 5 Build FAISS Gallery Indices"
+    )
+    parser.add_argument(
+        "--sar-embeddings",
+        type=Path,
+        default=DEFAULT_SAR_EMBEDDINGS,
+        help="Path to trained test SAR embeddings (.npy)",
+    )
+    parser.add_argument(
+        "--ms-embeddings",
+        type=Path,
+        default=DEFAULT_MS_EMBEDDINGS,
+        help="Path to trained test MS embeddings (.npy)",
+    )
+    parser.add_argument(
+        "--sar-index",
+        type=Path,
+        default=DEFAULT_SAR_INDEX,
+        help="Path to output SAR FAISS index (.index)",
+    )
+    parser.add_argument(
+        "--ms-index",
+        type=Path,
+        default=DEFAULT_MS_INDEX,
+        help="Path to output MS FAISS index (.index)",
+    )
+    args = parser.parse_args()
 
     print("=" * 70)
-    print("WEEK 5 — BUILD FAISS GALLERY INDICES")
+    print("WEEK 5 — BUILD FAISS GALLERY INDICES (SCIENTIFIC REVISION)")
     print("=" * 70)
     print()
+
+    if faiss is None:
+        raise ImportError(
+            "faiss is not installed in the active Python environment.\n"
+            "Please install faiss-cpu to build FAISS indices:\n"
+            "    pip install faiss-cpu"
+        )
 
     print(f"FAISS version: {faiss.__version__}")
     print()
@@ -163,12 +208,12 @@ def main() -> None:
     # --------------------------------------------------------
 
     sar_embeddings = load_embeddings(
-        SAR_EMBEDDINGS,
+        args.sar_embeddings,
         "SAR",
     )
 
     ms_embeddings = load_embeddings(
-        MS_EMBEDDINGS,
+        args.ms_embeddings,
         "MS",
     )
 
@@ -180,7 +225,7 @@ def main() -> None:
 
     build_index(
         embeddings=sar_embeddings,
-        output_path=SAR_INDEX,
+        output_path=args.sar_index,
         name="SAR",
     )
 
@@ -188,7 +233,7 @@ def main() -> None:
 
     build_index(
         embeddings=ms_embeddings,
-        output_path=MS_INDEX,
+        output_path=args.ms_index,
         name="MS",
     )
 
@@ -200,11 +245,11 @@ def main() -> None:
     print("Verifying saved indices...")
 
     sar_index = faiss.read_index(
-        str(SAR_INDEX)
+        str(args.sar_index)
     )
 
     ms_index = faiss.read_index(
-        str(MS_INDEX)
+        str(args.ms_index)
     )
 
     if sar_index.ntotal != EXPECTED_SAMPLES:
@@ -246,11 +291,11 @@ def main() -> None:
     print()
 
     print(
-        f"SAR gallery: {SAR_INDEX}"
+        f"SAR gallery: {args.sar_index}"
     )
 
     print(
-        f"MS gallery : {MS_INDEX}"
+        f"MS gallery : {args.ms_index}"
     )
 
 

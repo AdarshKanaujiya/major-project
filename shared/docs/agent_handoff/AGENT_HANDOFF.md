@@ -27,12 +27,13 @@ The user has two goals:
 ### 1.3 What Stage the Project Is Currently In
 - **Phase 1 (Consolidation & Provenance Tracking)**: `[VERIFIED COMPLETE]`  
   All 4 member codebases have been audited and merged into `SENTINEL-RS/`. Historical 30k experimental outputs are safeguarded in `results/local_pc/`.
-- **Phase 2 (Codebase Audits, Scientific Corrections & Local Validation)**: `[ACTIVE]`  
+- **Phase 2 (Codebase Audits, Scientific Corrections & Local Validation)**: `[STATIC INTEGRATION COMPLETE; RUNTIME BLOCKED]`  
   - **Week 1**: Audited and validated (metadata, zero leakage, 19 classes). `[COMPLETE]`
   - **Week 2**: Audited, 15 files corrected, numerical consistency and strict checkpoint compatibility verified. `[COMPLETE]`
   - **Week 3**: Audited, scientific clarification completed, 6 approved source corrections applied, 12-point validation suite passed. `[COMPLETE]`
-  - **Week 4 (Next Milestone)**: Two-Tower architecture audit, InfoNCE training loop, and checkpoint saving. `[NEXT]`
-  - **Week 5**: Embeddings extraction, FAISS galleries, and evaluation/Atlas deployment.
+  - **Week 4**: Two-Tower architecture audit, InfoNCE training, BatchNorm/Adam/AdamW decoupling, checkpoint saving — static code verified. `[COMPLETE]`
+  - **Week 5**: Phase A audit, Phase A.1 scientific reconciliation, Phase B implementation & Phase B.2 reconciliation — 22 files corrected, 0 compile errors, metric relabelling, identifier mapping (`test_patch_id_mapping.csv`), derived validation arrays quarantined (`derived_val_l2/`), timing benchmark fail-closed. `[STATICALLY INTEGRATED; RUNTIME BLOCKED]`
+  - **Runtime Blockers**: Actual checkpoint loading, real forward inference, FAISS indexing/searching, live Atlas portal, and real timing benchmarks are strictly **BLOCKED BY ENVIRONMENT** (missing PyTorch, FAISS, and physical 598.95 MB checkpoint binary). Weeks 1–5 are **not** collectively fully runtime-validated.
 
 ---
 
@@ -160,13 +161,23 @@ The project follows a disciplined seven-phase engineering roadmap:
   Generate final cross-modal and same-modal Recall@K and mAP comparison tables, publication-quality t-SNE figures, and prepare the final IEEE report.
 
 ### Exact Immediate Next Task for the Agent
-> **DO NOT write new code, modify existing code, or run experiments yet.**  
-> **TASK**: Execute **Phase 2 (Codebase Understanding & Dependency Audit)**:
-> 1. Statically inspect each script in `weeks/week_01/` through `weeks/week_05/`.
-> 2. Create a module dependency graph showing which scripts import which utilities.
-> 3. Catalog all hardcoded filesystem paths and environment assumptions that will break on Linux.
-> 4. Compare duplicate implementations (e.g. `two_tower_jainam.py` vs `two_tower_adarsh.py` vs `two_tower_meet.py`) side-by-side.
-> 5. Update `CURRENT_PROJECT_STATUS.md` and `RESEARCH_AND_AUDIT_LOG.md` with your findings.
+> **WEEK 5 STATUS: Statically Integrated & Audited; Runtime Validation Blocked by Environment.**  
+> All five weeks have been statically audited, corrected, and integrated. Real-model runtime execution is blocked pending environment provisioning.
+>
+> **Do NOT automatically advance to PARAM SHAVAK deployment without separate, explicitly authorized HPC phase approval.**
+>
+> **NEXT TASK: Environment Provisioning & Pre-Execution Checks**
+> 1. Provision environment with `torch` (≥2.0), `torchvision`, `faiss-cpu` / `faiss-gpu`, and `rasterio`.
+> 2. Verify physical model checkpoint binary (598.95 MB `best_model-v1.ckpt`).
+> 3. Verify access to BigEarthNet satellite imagery root directory.
+> 4. Run real-model validation of Week 5 retrieval and benchmark scripts.
+> 5. Await explicit authorization before initiating PARAM SHAVAK HPC deployment.
+>
+> **Strict Constraints:**
+> - Do NOT modify `results/local_pc/` historical outputs.
+> - Do NOT overwrite historical CSV/TXT evidence.
+> - Derived validation arrays must remain in `derived_val_l2/`.
+> - Real benchmarks must fail closed if required checkpoint or data are absent.
 
 ---
 

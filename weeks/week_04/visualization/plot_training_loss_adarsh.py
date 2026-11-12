@@ -1,37 +1,63 @@
+"""Week 4 Training Loss Visualization Script
+Plots train and validation loss curves from metrics.csv.
+
+Authored by Adarsh (Person 2).
+Path and interface standardized with shared.config.settings.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+# Inject project root for robust imports
+_THIS_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = _THIS_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import pandas as pd
 
+from shared.config.settings import RESULTS_DIR
 
-METRICS_CSV = Path(
-    "week4/metrics.csv"
-)
-
-OUTPUT_PLOT = Path(
-    "week4/training_loss_by_ad.png"
-)
+DEFAULT_METRICS_CSV = RESULTS_DIR / "week_04" / "metrics" / "metrics.csv"
+DEFAULT_OUTPUT_PLOT = RESULTS_DIR / "week_04" / "visualization" / "training_loss_by_ad.png"
 
 
-def main():
-    if not METRICS_CSV.exists():
-        raise FileNotFoundError(
-            f"Training log not found:\n{METRICS_CSV}"
-        )
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Plot train and validation loss curves from metrics CSV."
+    )
+    parser.add_argument(
+        "--metrics-csv",
+        type=Path,
+        default=DEFAULT_METRICS_CSV,
+        help=f"Path to input metrics CSV (default: {DEFAULT_METRICS_CSV})",
+    )
+    parser.add_argument(
+        "--output-plot",
+        type=Path,
+        default=DEFAULT_OUTPUT_PLOT,
+        help=f"Path to output PNG plot (default: {DEFAULT_OUTPUT_PLOT})",
+    )
+    return parser.parse_args()
 
-    df = pd.read_csv(METRICS_CSV)
+
+def plot_training_loss(metrics_csv: Path, output_plot: Path) -> int:
+    if not metrics_csv.exists():
+        raise FileNotFoundError(f"Training log not found:\n{metrics_csv}")
+
+    df = pd.read_csv(metrics_csv)
 
     required = {"epoch", "train_loss", "val_loss"}
     missing = required - set(df.columns)
 
     if missing:
         raise ValueError(
-            f"Missing columns: {missing}\n"
-            f"Available columns: {list(df.columns)}"
+            f"Missing columns: {missing}\nAvailable columns: {list(df.columns)}"
         )
 
-    # Lightning may have NaN values in rows where only one
-    # metric was logged. Keep each metric independently.
     train_df = (
         df[["epoch", "train_loss"]]
         .dropna()
@@ -52,7 +78,20 @@ def main():
     if val_df.empty:
         raise ValueError("No val_loss values found.")
 
-    OUTPUT_PLOT.parent.mkdir(parents=True, exist_ok=True)
+    print("\nTraining epochs:")
+    print(train_df.to_string(index=False))
+
+    print("\nValidation epochs:")
+    print(val_df.to_string(index=False))
+
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("\n[WARNING] matplotlib is not installed in the current environment.")
+        print("          Loss tables are printed above. Plot generation was skipped.")
+        return 0
+
+    output_plot.parent.mkdir(parents=True, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
 
@@ -78,21 +117,19 @@ def main():
     plt.tight_layout()
 
     plt.savefig(
-        OUTPUT_PLOT,
+        output_plot,
         dpi=200,
         bbox_inches="tight",
     )
-
     plt.close()
 
-    print(f"[OK] Training plot saved:")
-    print(OUTPUT_PLOT)
+    print(f"\n[OK] Training plot saved: {output_plot}")
+    return 0
 
-    print("\nTraining epochs:")
-    print(train_df.to_string(index=False))
 
-    print("\nValidation epochs:")
-    print(val_df.to_string(index=False))
+def main() -> None:
+    args = parse_args()
+    plot_training_loss(args.metrics_csv, args.output_plot)
 
 
 if __name__ == "__main__":

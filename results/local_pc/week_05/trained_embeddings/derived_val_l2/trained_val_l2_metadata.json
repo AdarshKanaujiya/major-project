@@ -1,0 +1,30 @@
+{
+    "title": "L2-Normalized Trained Validation Embeddings",
+    "created_utc": "2026-11-12T08:28:43.381308+00:00",
+    "provenance": {
+        "source_raw_sar_embeddings": "trained_val_sar_embeddings.npy",
+        "source_raw_sar_sha256": "419dd3ced4bbcfef1cc98c0402fff2406dbf8b3f583eeec9a2e45d4b61c1535d",
+        "source_raw_ms_embeddings": "trained_val_ms_embeddings.npy",
+        "source_raw_ms_sha256": "d053bb123dd96dddc1aa12e69d049ee4fb54b3fb002e0cb5efcbdf1a2d23fe2e",
+        "patch_ids_manifest": "trained_val_patch_ids.txt",
+        "sample_count": 4500,
+        "embedding_dimension": 512,
+        "dtype": "float32"
+    },
+    "normalization": {
+        "algorithm": "Euclidean L2 Normalization (axis=1)",
+        "formula": "v / max(norm(v, 2), 1e-12)",
+        "sar_l2_norm_min": 0.9999998807907104,
+        "sar_l2_norm_max": 1.0000001192092896,
+        "sar_l2_norm_mean": 1.0,
+        "ms_l2_norm_min": 0.9999998807907104,
+        "ms_l2_norm_max": 1.0000001192092896,
+        "ms_l2_norm_mean": 1.0
+    },
+    "artifacts": {
+        "normalized_sar_embeddings": "trained_val_sar_embeddings_l2.npy",
+        "normalized_sar_sha256": "bb78705cff652c8d0f81d346b80cf4fb76aae7e5a929d343845eb86ec54f65e4",
+        "normalized_ms_embeddings": "trained_val_ms_embeddings_l2.npy",
+        "normalized_ms_sha256": "ceed7445c5d47e8d06ea8cd1db14cfe4c7dd9eaf517e763af91a5fe67f4ff704"
+    }
+}

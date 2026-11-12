@@ -1,26 +1,33 @@
-"""
-Week 4 Training Script
+"""Week 4 Canonical Contrastive Training Script
 Cross-Modal SAR–Multispectral Satellite Image Retrieval
 
 Training setup:
 - PyTorch Lightning
-- Two-tower ResNet-50 model
-- Symmetric InfoNCE loss
-- Physical batch size: 16
-- Mixed precision: 16-mixed
-- Effective training dataset: 21,000 pairs
-- Maximum epochs: 20
-- Automatic GPU selection
+- Two-tower ResNet-50 model with independent backbones and projection heads
+- Symmetric InfoNCE loss with temperature tau = 0.07
+- Configurable Optimizer: Adam (historical reproduction) or AdamW (experimental)
+- Configurable Projection Head: Linear -> ReLU -> Linear (historical) or Linear -> BN -> ReLU -> Linear
+- CosineAnnealingLR scheduler
+- Physical batch size: 16 (or user-configured)
+- Precision: 16-mixed (or user-configured)
 - Gradient clipping: 1.0
 - Best checkpoint selected using validation loss
-- CSV training logs
-- Training-loss curve
+- Isolated output directory: Never overwrites historical results in results/local_pc/
 """
 
 from __future__ import annotations
 
+import argparse
+import os
+import sys
 import time
 from pathlib import Path
+
+# Inject project root for robust imports
+_THIS_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = _THIS_DIR.parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import lightning as L
 import matplotlib.pyplot as plt
@@ -28,48 +35,18 @@ import pandas as pd
 import torch
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
-from torch.optim import Adam
 from torch.optim.lr_scheduler import CosineAnnealingLR
 
-from src.data.dataloader import create_paired_dataloaders
-from src.models.two_tower import InfoNCELoss, TwoTowerNetwork
-
-
-# ============================================================
-# PATHS
-# ============================================================
-
-TRAIN_CSV = Path("outputs/metadata/train_split.csv")
-VAL_CSV = Path("outputs/metadata/val_split.csv")
-
-S1_ROOT = Path(
-    r"C:\BigEarthNet-S1-Required\BigEarthNet-S1-Required"
+from shared.config.settings import (
+    PROJECT_ROOT,
+    RESULTS_DIR,
+    SPLITS_DIR,
+    S1_DIR,
+    S2_DIR,
+    TEMPERATURE as DEFAULT_TEMPERATURE,
 )
-
-S2_ROOT = Path(
-    r"C:\BigEarthNet-S2-Required"
-)
-
-CHECKPOINT_DIR = Path("outputs/checkpoints")
-LOG_DIR = Path("outputs/logs")
-PLOT_DIR = Path("outputs/plots")
-
-
-# ============================================================
-# TRAINING CONFIGURATION
-# ============================================================
-
-BATCH_SIZE = 16
-NUM_WORKERS = 4
-
-MAX_EPOCHS = 20
-LEARNING_RATE = 1e-4
-TEMPERATURE = 0.07
-
-GRADIENT_CLIP_VAL = 1.0
-
-# Use mixed precision to reduce VRAM usage.
-PRECISION = "16-mixed"
+from weeks.week_02.dataloader.dataloader_adarsh import create_paired_dataloaders
+from weeks.week_04.models.two_tower_jainam import InfoNCELoss, TwoTowerNetwork
 
 
 # ============================================================
@@ -77,21 +54,25 @@ PRECISION = "16-mixed"
 # ============================================================
 
 class RetrievalLightningModule(L.LightningModule):
-    """
-    Lightning wrapper around the two-tower retrieval network.
-    """
+    """Lightning wrapper around the two-tower retrieval network."""
 
     def __init__(
         self,
-        learning_rate: float = LEARNING_RATE,
-        temperature: float = TEMPERATURE,
-        max_epochs: int = MAX_EPOCHS,
+        learning_rate: float = 1e-4,
+        weight_decay: float = 0.0,
+        optimizer_type: str = "Adam",
+        temperature: float = DEFAULT_TEMPERATURE,
+        max_epochs: int = 20,
+        use_batchnorm: bool = False,
+        pretrained: bool = True,
     ) -> None:
         super().__init__()
-
         self.save_hyperparameters()
 
-        self.network = TwoTowerNetwork(pretrained=True)
+        self.network = TwoTowerNetwork(
+            pretrained=pretrained,
+            use_batchnorm=use_batchnorm,
+        )
 
         self.loss_fn = InfoNCELoss(
             temperature=temperature
@@ -166,10 +147,25 @@ class RetrievalLightningModule(L.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = Adam(
-            self.parameters(),
-            lr=self.hparams.learning_rate,
-        )
+        opt_choice = self.hparams.optimizer_type.lower()
+
+        if opt_choice == "adamw":
+            optimizer = torch.optim.AdamW(
+                self.parameters(),
+                lr=self.hparams.learning_rate,
+                weight_decay=self.hparams.weight_decay,
+            )
+        elif opt_choice == "adam":
+            optimizer = torch.optim.Adam(
+                self.parameters(),
+                lr=self.hparams.learning_rate,
+                weight_decay=self.hparams.weight_decay,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported optimizer_type '{self.hparams.optimizer_type}'. "
+                "Must be 'Adam' or 'AdamW'."
+            )
 
         scheduler = CosineAnnealingLR(
             optimizer,
@@ -186,40 +182,28 @@ class RetrievalLightningModule(L.LightningModule):
 
 
 # ============================================================
-# TRAINING CURVE
+# TRAINING CURVE GENERATOR
 # ============================================================
 
 def create_training_plot(
     metrics_path: Path,
+    output_path: Path,
 ) -> None:
-    """
-    Create train/validation loss plot from Lightning CSV logs.
-    """
-
+    """Create train/validation loss plot from Lightning CSV logs."""
     if not metrics_path.exists():
-        print(
-            f"[WARNING] Metrics file not found: {metrics_path}"
-        )
+        print(f"[WARNING] Metrics file not found: {metrics_path}")
         return
 
     metrics = pd.read_csv(metrics_path)
 
-    train_metrics = metrics[
-        ["epoch", "train_loss"]
-    ].dropna()
-
-    val_metrics = metrics[
-        ["epoch", "val_loss"]
-    ].dropna()
+    train_metrics = metrics[["epoch", "train_loss"]].dropna() if "train_loss" in metrics.columns else pd.DataFrame()
+    val_metrics = metrics[["epoch", "val_loss"]].dropna() if "val_loss" in metrics.columns else pd.DataFrame()
 
     if train_metrics.empty and val_metrics.empty:
         print("[WARNING] No loss data found for plotting.")
         return
 
-    PLOT_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     plt.figure(figsize=(10, 6))
 
@@ -241,207 +225,221 @@ def create_training_plot(
 
     plt.xlabel("Epoch")
     plt.ylabel("InfoNCE Loss")
-    plt.title(
-        "Cross-Modal Retrieval Training Loss"
-    )
+    plt.title("Cross-Modal Retrieval Training Loss")
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
 
-    output_path = (
-        PLOT_DIR / "training_loss.png"
-    )
-
-    plt.savefig(
-        output_path,
-        dpi=200,
-    )
-
+    plt.savefig(output_path, dpi=200)
     plt.close()
-
-    print(
-        f"[OK] Training plot saved: "
-        f"{output_path}"
-    )
+    print(f"[OK] Training plot saved: {output_path}")
 
 
 # ============================================================
-# MAIN
+# CLI ARGUMENT PARSER
+# ============================================================
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="SENTINEL-RS Week 4 Two-Tower Contrastive Training"
+    )
+
+    # Data paths (defaulting to verified settings constants)
+    parser.add_argument(
+        "--train-csv",
+        type=Path,
+        default=SPLITS_DIR / "train_split.csv",
+        help="Path to training split CSV (default: results/local_pc/week_02/splits/train_split.csv)",
+    )
+    parser.add_argument(
+        "--val-csv",
+        type=Path,
+        default=SPLITS_DIR / "val_split.csv",
+        help="Path to validation split CSV (default: results/local_pc/week_02/splits/val_split.csv)",
+    )
+    parser.add_argument(
+        "--s1-root",
+        type=Path,
+        default=S1_DIR,
+        help="Root directory for Sentinel-1 GeoTIFF patches",
+    )
+    parser.add_argument(
+        "--s2-root",
+        type=Path,
+        default=S2_DIR,
+        help="Root directory for Sentinel-2 GeoTIFF patches",
+    )
+    parser.add_argument(
+        "--run-dir",
+        type=Path,
+        default=RESULTS_DIR / "week_04" / "runs" / "canonical_run",
+        help="Output directory for new run artifacts (never overwrites historical results)",
+    )
+
+    # Hyperparameters
+    parser.add_argument("--batch-size", type=int, default=16, help="Batch size (default: 16)")
+    parser.add_argument("--num-workers", type=int, default=4, help="DataLoader worker processes (default: 4)")
+    parser.add_argument("--max-epochs", type=int, default=20, help="Maximum training epochs (default: 20)")
+    parser.add_argument("--learning-rate", type=float, default=1e-4, help="Initial learning rate (default: 0.0001)")
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default="Adam",
+        choices=["Adam", "AdamW"],
+        help="Optimizer type: 'Adam' (historical reproduction) or 'AdamW' (experimental alternative)",
+    )
+    parser.add_argument(
+        "--weight-decay",
+        type=float,
+        default=0.0,
+        help="Weight decay for optimizer (default: 0.0 for Adam, recommended 1e-4 for AdamW)",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=DEFAULT_TEMPERATURE,
+        help=f"InfoNCE temperature parameter (default: {DEFAULT_TEMPERATURE})",
+    )
+    parser.add_argument(
+        "--gradient-clip-val",
+        type=float,
+        default=1.0,
+        help="Gradient norm clipping value (default: 1.0)",
+    )
+    parser.add_argument(
+        "--precision",
+        type=str,
+        default="16-mixed",
+        help="Lightning precision mode (default: 16-mixed)",
+    )
+    parser.add_argument(
+        "--use-batchnorm",
+        action="store_true",
+        default=False,
+        help="Enable BatchNorm1d in projection heads (default: False, preserves historical checkpoint compatibility)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed for data shuffling and initialization (default: 42)",
+    )
+
+    return parser.parse_args()
+
+
+# ============================================================
+# MAIN ROUTINE
 # ============================================================
 
 def main() -> None:
+    args = parse_args()
 
-    # Tensor Core optimization for NVIDIA GPU.
-    torch.set_float32_matmul_precision("high")
+    # Deterministic seeding (best-effort across environments)
+    L.seed_everything(args.seed, workers=True)
+
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision("high")
 
     print("=" * 70)
-    print(
-        "WEEK 4 — CROSS-MODAL RETRIEVAL TRAINING"
-    )
+    print("SENTINEL-RS WEEK 4 — TWO-TOWER CONTRASTIVE TRAINING")
+    print("=" * 70)
+    print(f"Train CSV          : {args.train_csv}")
+    print(f"Validation CSV     : {args.val_csv}")
+    print(f"S1 Root            : {args.s1_root}")
+    print(f"S2 Root            : {args.s2_root}")
+    print(f"Run Output Dir     : {args.run_dir}")
+    print(f"Batch size         : {args.batch_size}")
+    print(f"Workers            : {args.num_workers}")
+    print(f"Max epochs         : {args.max_epochs}")
+    print(f"Optimizer          : {args.optimizer}")
+    print(f"Learning rate      : {args.learning_rate}")
+    print(f"Weight decay       : {args.weight_decay}")
+    print(f"Temperature        : {args.temperature}")
+    print(f"Use BatchNorm1d    : {args.use_batchnorm}")
+    print(f"Gradient clipping  : {args.gradient_clip_val}")
+    print(f"Precision          : {args.precision}")
+    print(f"Random seed        : {args.seed}")
     print("=" * 70)
     print()
 
-    print("Configuration:")
-    print(f"Train CSV          : {TRAIN_CSV}")
-    print(f"Validation CSV     : {VAL_CSV}")
-    print(f"S1 Root            : {S1_ROOT}")
-    print(f"S2 Root            : {S2_ROOT}")
-    print(f"Batch size         : {BATCH_SIZE}")
-    print(f"Workers            : {NUM_WORKERS}")
-    print(f"Maximum epochs     : {MAX_EPOCHS}")
-    print(f"Learning rate      : {LEARNING_RATE}")
-    print(f"Temperature        : {TEMPERATURE}")
-    print(
-        f"Gradient clipping  : "
-        f"{GRADIENT_CLIP_VAL}"
-    )
-    print(
-        f"Precision          : "
-        f"{PRECISION}"
-    )
-    print()
-
-    # --------------------------------------------------------
-    # CHECK REQUIRED PATHS
-    # --------------------------------------------------------
-
-    required_paths = {
-        "Train CSV": TRAIN_CSV,
-        "Validation CSV": VAL_CSV,
-        "S1 root": S1_ROOT,
-        "S2 root": S2_ROOT,
-    }
-
-    for name, path in required_paths.items():
-
+    # Check required paths
+    for name, path in [
+        ("Train CSV", args.train_csv),
+        ("Validation CSV", args.val_csv),
+        ("S1 Root", args.s1_root),
+        ("S2 Root", args.s2_root),
+    ]:
         if not path.exists():
-            raise FileNotFoundError(
-                f"{name} not found:\n{path}"
-            )
+            raise FileNotFoundError(f"{name} not found: {path}")
 
-        print(
-            f"[OK] {name}: {path}"
-        )
+    # Set up segregated output directories
+    checkpoint_dir = args.run_dir / "checkpoints"
+    log_dir = args.run_dir / "logs"
+    plot_dir = args.run_dir / "plots"
 
+    for d in (checkpoint_dir, log_dir, plot_dir):
+        d.mkdir(parents=True, exist_ok=True)
+
+    # Instantiate DataLoaders
+    print("Creating training and validation paired DataLoaders...")
+    train_loader, val_loader = create_paired_dataloaders(
+        train_csv=args.train_csv,
+        val_csv=args.val_csv,
+        s1_root=args.s1_root,
+        s2_root=args.s2_root,
+        batch_size=args.batch_size,
+        num_workers=args.num_workers,
+    )
+
+    print(f"[OK] Training samples   : {len(train_loader.dataset):,}")
+    print(f"[OK] Validation samples : {len(val_loader.dataset):,}")
     print()
 
-    # --------------------------------------------------------
-    # CREATE OUTPUT DIRECTORIES
-    # --------------------------------------------------------
-
-    CHECKPOINT_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    LOG_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    PLOT_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    # --------------------------------------------------------
-    # CREATE DATALOADERS
-    # --------------------------------------------------------
-
-    print(
-        "Creating training and validation "
-        "DataLoaders..."
-    )
-    print()
-
-    train_loader, val_loader = (
-        create_paired_dataloaders(
-            train_csv=TRAIN_CSV,
-            val_csv=VAL_CSV,
-            s1_root=S1_ROOT,
-            s2_root=S2_ROOT,
-            batch_size=BATCH_SIZE,
-            num_workers=NUM_WORKERS,
-        )
-    )
-
-    print()
-
-    print(
-        f"[OK] Training samples   : "
-        f"{len(train_loader.dataset):,}"
-    )
-
-    print(
-        f"[OK] Validation samples : "
-        f"{len(val_loader.dataset):,}"
-    )
-
-    print()
-
-    # --------------------------------------------------------
-    # CREATE MODEL
-    # --------------------------------------------------------
-
-    print(
-        "Creating two-tower model..."
-    )
-
+    # Instantiate Model
+    print("Creating TwoTowerNetwork Lightning module...")
     model = RetrievalLightningModule(
-        learning_rate=LEARNING_RATE,
-        temperature=TEMPERATURE,
-        max_epochs=MAX_EPOCHS,
+        learning_rate=args.learning_rate,
+        weight_decay=args.weight_decay,
+        optimizer_type=args.optimizer,
+        temperature=args.temperature,
+        max_epochs=args.max_epochs,
+        use_batchnorm=args.use_batchnorm,
+        pretrained=True,
     )
-
-    print("[OK] Model created.")
+    print("[OK] Model created successfully.")
     print()
 
-    # --------------------------------------------------------
-    # CHECKPOINT CALLBACK
-    # --------------------------------------------------------
-
+    # Callbacks and Logger
     checkpoint_callback = ModelCheckpoint(
-        dirpath=CHECKPOINT_DIR,
-        filename="best_model",
+        dirpath=checkpoint_dir,
+        filename="best_model-{epoch:02d}-{val_loss:.4f}",
         monitor="val_loss",
         mode="min",
         save_top_k=1,
         save_last=True,
     )
 
-    # --------------------------------------------------------
-    # CSV LOGGER
-    # --------------------------------------------------------
-
     csv_logger = CSVLogger(
-        save_dir=LOG_DIR,
-        name="retrieval_training",
+        save_dir=log_dir,
+        name="contrastive_training",
     )
 
-    # --------------------------------------------------------
-    # TRAINER
-    # --------------------------------------------------------
-
+    # PyTorch Lightning Trainer
     trainer = L.Trainer(
-        max_epochs=MAX_EPOCHS,
+        max_epochs=args.max_epochs,
         accelerator="auto",
         devices="auto",
-        precision=PRECISION,
-        gradient_clip_val=GRADIENT_CLIP_VAL,
+        precision=args.precision,
+        gradient_clip_val=args.gradient_clip_val,
         callbacks=[checkpoint_callback],
         logger=csv_logger,
         log_every_n_steps=1,
     )
 
-    # --------------------------------------------------------
-    # START TRAINING
-    # --------------------------------------------------------
-
     print("=" * 70)
     print("STARTING TRAINING")
     print("=" * 70)
-    print()
-
     start_time = time.perf_counter()
 
     trainer.fit(
@@ -450,145 +448,22 @@ def main() -> None:
         val_dataloaders=val_loader,
     )
 
-    elapsed_seconds = (
-        time.perf_counter() - start_time
-    )
+    elapsed_hours = (time.perf_counter() - start_time) / 3600.0
 
-    elapsed_hours = (
-        elapsed_seconds / 3600.0
-    )
-
-    # --------------------------------------------------------
-    # READ TRAINING METRICS
-    # --------------------------------------------------------
-
-    metrics_path = (
-        Path(csv_logger.log_dir)
-        / "metrics.csv"
-    )
-
-    final_train_loss = None
-    final_val_loss = None
-    best_val_loss = None
-    best_epoch = None
-
-    if metrics_path.exists():
-
-        metrics = pd.read_csv(
-            metrics_path
-        )
-
-        train_metrics = metrics[
-            ["epoch", "train_loss"]
-        ].dropna()
-
-        val_metrics = metrics[
-            ["epoch", "val_loss"]
-        ].dropna()
-
-        if not train_metrics.empty:
-
-            final_train_loss = float(
-                train_metrics.iloc[-1][
-                    "train_loss"
-                ]
-            )
-
-        if not val_metrics.empty:
-
-            final_val_loss = float(
-                val_metrics.iloc[-1][
-                    "val_loss"
-                ]
-            )
-
-            best_index = val_metrics[
-                "val_loss"
-            ].idxmin()
-
-            best_val_loss = float(
-                val_metrics.loc[
-                    best_index,
-                    "val_loss",
-                ]
-            )
-
-            best_epoch = int(
-                val_metrics.loc[
-                    best_index,
-                    "epoch",
-                ]
-            )
-
-    # --------------------------------------------------------
-    # CREATE TRAINING PLOT
-    # --------------------------------------------------------
-
-    create_training_plot(
-        metrics_path
-    )
-
-    # --------------------------------------------------------
-    # FINAL RESULTS
-    # --------------------------------------------------------
+    # Process metrics and create plot
+    metrics_path = Path(csv_logger.log_dir) / "metrics.csv"
+    plot_path = plot_dir / "training_loss.png"
+    create_training_plot(metrics_path, plot_path)
 
     print()
     print("=" * 70)
     print("TRAINING COMPLETE")
     print("=" * 70)
-    print()
-
-    print(
-        f"Total training time : "
-        f"{elapsed_hours:.4f} hours"
-    )
-
-    print(
-        f"Final training loss : "
-        f"{final_train_loss}"
-    )
-
-    print(
-        f"Final validation loss: "
-        f"{final_val_loss}"
-    )
-
-    print(
-        f"Best validation loss : "
-        f"{best_val_loss}"
-    )
-
-    print(
-        f"Best validation epoch: "
-        f"{best_epoch}"
-    )
-
-    print(
-        f"Best checkpoint      : "
-        f"{checkpoint_callback.best_model_path}"
-    )
-
-    print(
-        f"Last checkpoint      : "
-        f"{checkpoint_callback.last_model_path}"
-    )
-
-    print(
-        f"Training logs        : "
-        f"{csv_logger.log_dir}"
-    )
-
-    print(
-        f"Training plot        : "
-        f"{PLOT_DIR / 'training_loss.png'}"
-    )
-
-    print()
-
-    print("=" * 70)
-    print(
-        "WEEK 4 TRAINING RUN FINISHED"
-    )
+    print(f"Elapsed time     : {elapsed_hours:.4f} hours")
+    print(f"Best checkpoint  : {checkpoint_callback.best_model_path}")
+    print(f"Last checkpoint  : {checkpoint_callback.last_model_path}")
+    print(f"Metrics CSV      : {metrics_path}")
+    print(f"Loss plot        : {plot_path}")
     print("=" * 70)
 
 

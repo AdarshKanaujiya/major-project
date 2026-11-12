@@ -1,0 +1,82 @@
+{
+  "domains": {
+    "disaster-response": {
+      "name": "Disaster response",
+      "eyebrow": "01 / Rapid assessment",
+      "description": "Find matching satellite scenes for time-critical events, whatever the weather.",
+      "accent": "coral",
+      "subcategories": {
+        "flood-mapping": {
+          "name": "Flood mapping",
+          "modality": "SAR",
+          "reason": "SAR sees through clouds and works at night, making it the strongest choice for rapid flood extent mapping.",
+          "detail": "Best for water extent, inundation boundaries, and emergency response after heavy rainfall."
+        },
+        "wildfire-scar": {
+          "name": "Wildfire scar assessment",
+          "modality": "Multispectral",
+          "reason": "Multispectral bands reveal burn severity and vegetation stress through spectral change.",
+          "detail": "Best for comparing vegetation health and recently burned surfaces."
+        },
+        "landslide-damage": {
+          "name": "Landslide damage",
+          "modality": "Hybrid",
+          "reason": "Combining radar texture with optical context helps separate terrain change from surrounding land cover.",
+          "detail": "Best when cloud-free context and surface-change evidence are both valuable."
+        }
+      }
+    },
+    "environmental-monitoring": {
+      "name": "Environmental monitoring",
+      "eyebrow": "02 / Living systems",
+      "description": "Read the pulse of forests, water, and protected landscapes from above.",
+      "accent": "mint",
+      "subcategories": {
+        "forest-change": {
+          "name": "Forest change",
+          "modality": "Hybrid",
+          "reason": "Optical color and radar structure together provide a more reliable view of canopy change.",
+          "detail": "Best for disturbance, clearing, and forest condition over time."
+        },
+        "water-quality": {
+          "name": "Water and wetland monitoring",
+          "modality": "Multispectral",
+          "reason": "Visible and near-infrared bands provide useful separation of water, vegetation, and sediment.",
+          "detail": "Best for lakes, wetlands, coastlines, and surface-water change."
+        },
+        "coastal-change": {
+          "name": "Coastal change",
+          "modality": "SAR",
+          "reason": "Radar remains dependable in coastal cloud cover and helps reveal shoreline structure.",
+          "detail": "Best for shoreline movement and broad coastal surface patterns."
+        }
+      }
+    },
+    "urban-agricultural": {
+      "name": "Urban & agricultural",
+      "eyebrow": "03 / Human landscapes",
+      "description": "Compare the patterns of fields, infrastructure, and the places where people live.",
+      "accent": "gold",
+      "subcategories": {
+        "crop-monitoring": {
+          "name": "Crop monitoring",
+          "modality": "Multispectral",
+          "reason": "Spectral bands expose crop vigor and seasonal differences across agricultural parcels.",
+          "detail": "Best for crop condition, field boundaries, and vegetation patterns."
+        },
+        "urban-growth": {
+          "name": "Urban growth",
+          "modality": "Hybrid",
+          "reason": "Optical detail and radar structure together distinguish built-up growth from bare ground.",
+          "detail": "Best for settlement expansion and changing infrastructure."
+        },
+        "infrastructure": {
+          "name": "Infrastructure mapping",
+          "modality": "SAR",
+          "reason": "Radar provides consistent structural signals across lighting conditions and moderate cloud cover.",
+          "detail": "Best for roads, dense built-up areas, and large engineered surfaces."
+        }
+      }
+    }
+  }
+}

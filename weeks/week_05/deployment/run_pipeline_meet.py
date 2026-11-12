@@ -1,18 +1,35 @@
 """
-run_pipeline.py - Master Entry Point for Sentinel-1 SAR Data Pipeline.
+weeks/week_05/deployment/run_pipeline_meet.py
 
-This script orchestrates the execution of all pipeline steps in order:
-1. Dataset Exploration & Inspection
-2. SAR Preprocessing verification
-3. Dataset Statistics Generation (small validation run)
-4. Visualization Module verification
-5. Dataset Class verification
-6. DataLoader verification
-7. Unit & Integration Tests
-8. t-SNE Embedding Visualization verification
-9. Latency & Timing Benchmarks verification
+================================================================================
+LEGACY SCRIPT — PRESERVED FOR PROVENANCE ONLY
+================================================================================
 
-Reuses existing functions from packages to verify execution without code duplication.
+This script was originally authored as a master orchestration entry point for
+the Week 1/2 Sentinel-1 SAR Data Pipeline. It orchestrates:
+  1. Dataset exploration & inspection
+  2. SAR preprocessing verification
+  3. Dataset statistics generation
+  4. Visualization module verification
+  5. Dataset class verification
+  6. DataLoader verification
+  7. Unit & integration tests
+  8. t-SNE embedding visualization
+  9. Latency & timing benchmarks
+
+DEPRECATION NOTICE:
+  - This script imports from `config.settings` and week-local preprocessing
+    modules that may not be available in the canonical project structure.
+  - It is NOT part of the operational Week 5 retrieval pipeline.
+  - For the canonical Week 5 pipeline, see:
+      weeks/week_05/retrieval/retriever_meet.py
+      weeks/week_05/deployment/app_meet.py
+      weeks/week_05/benchmarking/timing_meet.py
+  - Do not invoke this script expecting it to run successfully without the
+    original contributor's local environment configuration.
+
+This file is preserved to maintain historical provenance and contributor attribution.
+================================================================================
 """
 
 import time

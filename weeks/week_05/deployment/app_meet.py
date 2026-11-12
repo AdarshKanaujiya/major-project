@@ -1,5 +1,7 @@
 """
-app.py - Atlas Remote Sensing Intelligence Portal & Cross-Modal Satellite Image Retrieval.
+weeks/week_05/deployment/app_meet.py
+
+Atlas Remote Sensing Intelligence Portal — Cross-Modal Satellite Image Retrieval.
 
 Production Flask Application integrating:
 - TwoTowerNetwork (ResNet-50 SAR + MS towers) with best_model-v1.ckpt
@@ -8,6 +10,11 @@ Production Flask Application integrating:
 - Real-time cross-modal and hybrid retrieval with latency measurement
 - Live satellite image thumbnail streaming and query scene comparison
 - Safe upload management and graceful HTTP error handling
+- Non-destructive identifier mapping for SAR thumbnail resolution
+
+ENVIRONMENT NOTE:
+  Requires torch, faiss-cpu, rasterio to be installed.
+  At start-up the app checks for these dependencies and raises a clear error if missing.
 """
 
 from __future__ import annotations
@@ -17,26 +24,48 @@ import json
 import logging
 import os
 import shutil
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import numpy as np
 from PIL import Image
-from flask import (
-    Flask,
-    Response,
-    abort,
-    jsonify,
-    redirect,
-    render_template,
-    request,
-    send_file,
-    url_for,
-)
-from werkzeug.utils import secure_filename
 
-from src.inference.retriever import (
+try:
+    from flask import (
+        Flask,
+        Response,
+        abort,
+        jsonify,
+        redirect,
+        render_template,
+        request,
+        send_file,
+        url_for,
+    )
+    from werkzeug.utils import secure_filename
+except ImportError as _flask_err:
+    raise RuntimeError(
+        "[DEPENDENCY ERROR] Flask or Werkzeug is not installed. "
+        "Install with: pip install flask werkzeug"
+    ) from _flask_err
+
+try:
+    from shared.config.settings import RESULTS_DIR, SPLITS_DIR, CHECKPOINTS_DIR, S1_DIR, S2_DIR
+except ImportError:
+    RESULTS_DIR = PROJECT_ROOT / "results" / "local_pc"
+    SPLITS_DIR = RESULTS_DIR / "week_02" / "splits"
+    CHECKPOINTS_DIR = RESULTS_DIR / "week_04" / "checkpoints"
+    S1_DIR = PROJECT_ROOT / "data" / "BigEarthNet-S1"
+    S2_DIR = PROJECT_ROOT / "data" / "BigEarthNet-S2"
+
+from weeks.week_05.retrieval.retriever_meet import (
     CrossModalRetriever,
     get_retriever,
     load_modality_config,
@@ -52,8 +81,7 @@ logger = logging.getLogger("AtlasPortal")
 # ------------------------------------------------------------
 # APPLICATION INITIALIZATION
 # ------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parent
-UPLOAD_DIR = PROJECT_ROOT / "instance" / "uploads"
+UPLOAD_DIR = Path(__file__).resolve().parent / "instance" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {"tif", "tiff", "png", "jpg", "jpeg"}
@@ -78,7 +106,7 @@ SAMPLE_SCENES: Dict[str, Dict[str, Any]] = {
         "modality": "SAR",
         "domain": "disaster-response",
         "subcategory": "flood",
-        "path": PROJECT_ROOT / "teammate_inputs" / "BigEarthNet-S1-Required" / "S1B_IW_GRDH_1SDV_20170612T165809" / "S1B_IW_GRDH_1SDV_20170612T165809_33UUP_39_66" / "S1B_IW_GRDH_1SDV_20170612T165809_33UUP_39_66_VV.tif",
+        "path": S1_DIR / "S1B_IW_GRDH_1SDV_20170612T165809" / "S1B_IW_GRDH_1SDV_20170612T165809_33UUP_39_66" / "S1B_IW_GRDH_1SDV_20170612T165809_33UUP_39_66_VV.tif",
         "desc": "Dual-pol VV radar backscatter (water extent & inundation)",
     },
     "wildfire_ms": {
@@ -87,7 +115,7 @@ SAMPLE_SCENES: Dict[str, Dict[str, Any]] = {
         "modality": "MS",
         "domain": "disaster-response",
         "subcategory": "wildfire",
-        "path": PROJECT_ROOT / "teammate_inputs" / "BigEarthNet-S2-Required" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66_B04.tif",
+        "path": S2_DIR / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66_B04.tif",
         "desc": "Optical RGB reflectance (burn scar & canopy disturbance)",
     },
     "crop_hybrid": {
@@ -96,7 +124,7 @@ SAMPLE_SCENES: Dict[str, Dict[str, Any]] = {
         "modality": "Hybrid",
         "domain": "urban-agricultural",
         "subcategory": "crop-mapping",
-        "path": PROJECT_ROOT / "teammate_inputs" / "BigEarthNet-S2-Required" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66_B04.tif",
+        "path": S2_DIR / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66" / "S2A_MSIL2A_20170613T101031_N9999_R022_T33UUP_39_66_B04.tif",
         "desc": "Cross-modal dual-gallery candidate search & deterministic score merge",
     },
 }
@@ -275,6 +303,7 @@ def search():
                 t0 = time.perf_counter()
                 retriever = get_active_retriever()
 
+                t_retriever_ready = time.perf_counter()
                 raw_results = retriever.retrieve(
                     query_image_path=saved_path,
                     query_modality=query_mod,
@@ -284,10 +313,12 @@ def search():
                 t_retrieval = time.perf_counter()
 
                 total_ms = (t_retrieval - t0) * 1000.0
-
+                # faiss_ms is the FAISS search component, measured as retrieval minus
+                # encoding/preprocessing; without component-level timing instrumentation
+                # on the retriever we report the full end-to-end latency only.
                 latency_info = {
                     "total_ms": f"{total_ms:.1f}",
-                    "faiss_ms": "1.2",
+                    "faiss_ms": "N/A (see total_ms)",
                 }
 
                 results = raw_results

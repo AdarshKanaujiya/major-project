@@ -31,15 +31,23 @@ import time
 from pathlib import Path
 
 # Add project root to sys.path
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 import numpy as np
 from PIL import Image
 
-from app import app
-from src.inference.retriever import get_retriever, load_modality_config
+try:
+    from weeks.week_05.deployment.app_meet import app
+except ImportError:
+    app = None
+
+try:
+    from weeks.week_05.retrieval.retriever_meet import get_retriever, load_modality_config
+except ImportError:
+    get_retriever = None
+    load_modality_config = None
 
 
 def main() -> None:

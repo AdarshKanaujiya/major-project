@@ -1,44 +1,48 @@
 """
-Week 5 - Final FAISS Retrieval and Test Set Evaluation Report.
+Week 5 - Final FAISS Retrieval and Test Set Evaluation Report (Scientific Revision).
 
 Combines the existing Week 3 baseline results with the Week 5
 trained-model results into the final comparison table.
 
-Important:
+Important (Reconciled Phase A.1):
 - Cross-modal retrieval uses exact paired patch IDs.
 - Same-modal retrieval uses shared land-cover labels.
+- Same-modal Recall@K represents HitRate@K (fraction of queries with >= 1 relevant item in top K).
+- Same-modal mAP represents Retrieved-Normalized AP@10 (AP_ret@10), normalized by sum_{k=1}^10 rel(k).
 - Baseline mAP values are only reported where they were actually
   calculated using the corresponding evaluation setup.
 """
 
 from __future__ import annotations
 
+import argparse
+import sys
 from pathlib import Path
+
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from shared.config.settings import RESULTS_DIR
+except ImportError:
+    RESULTS_DIR = PROJECT_ROOT / "results" / "local_pc"
 
 import pandas as pd
 
 
 # ============================================================
-# PATHS
+# DEFAULT PATHS
 # ============================================================
 
-REPORT_DIR = Path("outputs/reports")
+DEFAULT_HISTORICAL_DIR = RESULTS_DIR / "week_05" / "evaluation"
+DEFAULT_TRAINED_CROSS_MODAL = DEFAULT_HISTORICAL_DIR / "trained_cross_modal_results.csv"
+DEFAULT_TRAINED_SAME_MODAL = DEFAULT_HISTORICAL_DIR / "trained_same_modal_results.csv"
 
-TRAINED_CROSS_MODAL = (
-    REPORT_DIR / "trained_cross_modal_results.csv"
-)
-
-TRAINED_SAME_MODAL = (
-    REPORT_DIR / "trained_same_modal_results.csv"
-)
-
-OUTPUT_CSV = (
-    REPORT_DIR / "week5_final_comparison.csv"
-)
-
-OUTPUT_TXT = (
-    REPORT_DIR / "Week_5_final_results.txt"
-)
+DEFAULT_REPORT_DIR = DEFAULT_HISTORICAL_DIR / "runs"
+DEFAULT_OUTPUT_CSV = DEFAULT_REPORT_DIR / "week5_final_comparison.csv"
+DEFAULT_OUTPUT_TXT = DEFAULT_REPORT_DIR / "Week_5_final_results.txt"
 
 
 # ============================================================
@@ -85,28 +89,28 @@ BASELINE_CROSS_MODAL = {
 # LOAD TRAINED RESULTS
 # ============================================================
 
-def load_trained_results() -> dict[str, dict]:
+def load_trained_results(
+    cross_modal_path: Path | None = None,
+    same_modal_path: Path | None = None,
+) -> dict[str, dict]:
     """Load Week 5 trained evaluation results."""
+    target_cm = cross_modal_path if cross_modal_path else DEFAULT_TRAINED_CROSS_MODAL
+    target_sm = same_modal_path if same_modal_path else DEFAULT_TRAINED_SAME_MODAL
 
-    if not TRAINED_CROSS_MODAL.exists():
+    if not target_cm.exists():
         raise FileNotFoundError(
             f"Missing trained cross-modal results:\n"
-            f"{TRAINED_CROSS_MODAL}"
+            f"{target_cm}"
         )
 
-    if not TRAINED_SAME_MODAL.exists():
+    if not target_sm.exists():
         raise FileNotFoundError(
             f"Missing trained same-modal results:\n"
-            f"{TRAINED_SAME_MODAL}"
+            f"{target_sm}"
         )
 
-    cross_modal = pd.read_csv(
-        TRAINED_CROSS_MODAL
-    )
-
-    same_modal = pd.read_csv(
-        TRAINED_SAME_MODAL
-    )
+    cross_modal = pd.read_csv(target_cm)
+    same_modal = pd.read_csv(target_sm)
 
     results = {}
 
@@ -124,11 +128,17 @@ def load_trained_results() -> dict[str, dict]:
 
     for _, row in same_modal.iterrows():
 
+        # Support both new HitRate@K and preserved Recall@K column names
+        r1 = float(row["HitRate@1"]) if "HitRate@1" in row else float(row["Recall@1"])
+        r5 = float(row["HitRate@5"]) if "HitRate@5" in row else float(row["Recall@5"])
+        r10 = float(row["HitRate@10"]) if "HitRate@10" in row else float(row["Recall@10"])
+        map_val = float(row["mAP_ret@10"]) if "mAP_ret@10" in row else float(row["mAP"])
+
         results[row["Mode"]] = {
-            "Recall@1": float(row["Recall@1"]),
-            "Recall@5": float(row["Recall@5"]),
-            "Recall@10": float(row["Recall@10"]),
-            "mAP": float(row["mAP"]),
+            "Recall@1": r1,
+            "Recall@5": r5,
+            "Recall@10": r10,
+            "mAP": map_val,
             "Avg Retrieval Time (ms)": float(
                 row["Avg Retrieval Time (ms)"]
             ),
@@ -191,9 +201,13 @@ def build_final_table(
 
 def write_text_report(
     final_df: pd.DataFrame,
+    output_txt_path: Path | None = None,
 ) -> None:
+    """Write human-readable final summary report."""
+    target_txt = output_txt_path if output_txt_path else DEFAULT_OUTPUT_TXT
+    target_txt.parent.mkdir(parents=True, exist_ok=True)
 
-    with OUTPUT_TXT.open(
+    with target_txt.open(
         "w",
         encoding="utf-8",
     ) as file:
@@ -231,11 +245,12 @@ def write_text_report(
         )
 
         file.write(
-            "NOTE:\n"
-            "Baseline mAP values are not populated because "
-            "the Week 3 baseline records available for this "
-            "final comparison contain Recall@K and retrieval "
-            "time, but do not contain baseline mAP values.\n\n"
+            "NOTE ON METRIC DEFINITIONS (Reconciled Phase A.1):\n"
+            "- Cross-modal Recall@K evaluates exact paired scene retrieval.\n"
+            "- Same-modal Recall@K reflects HitRate@K (percentage of queries with >=1 matching land-cover class in top K).\n"
+            "- Same-modal mAP reflects Retrieved-Normalized AP@10 (AP_ret@10), normalized by sum_{k=1}^10 rel(k).\n"
+            "- Baseline mAP values are not populated because the Week 3 baseline records "
+            "contain Recall@K and retrieval time, but do not contain baseline mAP values.\n\n"
         )
 
         file.write(
@@ -279,19 +294,19 @@ def write_text_report(
 
         file.write(
             "SAR -> SAR:\n"
-            "Recall@1 = 53.4000%\n"
-            "Recall@5 = 85.9778%\n"
-            "Recall@10 = 92.4889%\n"
-            "mAP@10 = 61.2397%\n"
+            "HitRate@1 (Recall@1)   = 53.4000%\n"
+            "HitRate@5 (Recall@5)   = 85.9778%\n"
+            "HitRate@10 (Recall@10) = 92.4889%\n"
+            "mAP_ret@10 (mAP@10)    = 61.2397%\n"
             "Average retrieval time = 0.0118 ms/query\n\n"
         )
 
         file.write(
             "MS -> MS:\n"
-            "Recall@1 = 57.8444%\n"
-            "Recall@5 = 87.0444%\n"
-            "Recall@10 = 93.4667%\n"
-            "mAP@10 = 64.0870%\n"
+            "HitRate@1 (Recall@1)   = 57.8444%\n"
+            "HitRate@5 (Recall@5)   = 87.0444%\n"
+            "HitRate@10 (Recall@10) = 93.4667%\n"
+            "mAP_ret@10 (mAP@10)    = 64.0870%\n"
             "Average retrieval time = 0.0113 ms/query\n"
         )
 
@@ -301,30 +316,62 @@ def write_text_report(
 # ============================================================
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Week 5 Final Evaluation Report Compiler"
+    )
+    parser.add_argument(
+        "--cross-modal-csv",
+        type=Path,
+        default=DEFAULT_TRAINED_CROSS_MODAL,
+        help="Path to trained_cross_modal_results.csv",
+    )
+    parser.add_argument(
+        "--same-modal-csv",
+        type=Path,
+        default=DEFAULT_TRAINED_SAME_MODAL,
+        help="Path to trained_same_modal_results.csv",
+    )
+    parser.add_argument(
+        "--output-csv",
+        type=Path,
+        default=DEFAULT_OUTPUT_CSV,
+        help="Path to save week5_final_comparison.csv",
+    )
+    parser.add_argument(
+        "--output-txt",
+        type=Path,
+        default=DEFAULT_OUTPUT_TXT,
+        help="Path to save Week_5_final_results.txt",
+    )
+    args = parser.parse_args()
 
     print("=" * 72)
     print("WEEK 5 — FINAL RESULTS")
     print("=" * 72)
     print()
 
-    trained_results = load_trained_results()
+    trained_results = load_trained_results(
+        cross_modal_path=args.cross_modal_csv,
+        same_modal_path=args.same_modal_csv,
+    )
 
     final_df = build_final_table(
         trained_results
     )
 
-    REPORT_DIR.mkdir(
+    args.output_csv.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
     final_df.to_csv(
-        OUTPUT_CSV,
+        args.output_csv,
         index=False,
     )
 
     write_text_report(
-        final_df
+        final_df,
+        output_txt_path=args.output_txt,
     )
 
     print(
@@ -336,11 +383,11 @@ def main() -> None:
 
     print()
     print(
-        f"[OK] CSV saved: {OUTPUT_CSV}"
+        f"[OK] CSV saved: {args.output_csv}"
     )
 
     print(
-        f"[OK] Text report saved: {OUTPUT_TXT}"
+        f"[OK] Text report saved: {args.output_txt}"
     )
 
     print()

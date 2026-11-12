@@ -1,0 +1,120 @@
+"""Atlas Flask application for cross-modal satellite image retrieval."""
+
+from __future__ import annotations
+
+import json
+import random
+from pathlib import Path
+
+from flask import Flask, redirect, render_template, request, url_for
+from werkzeug.utils import secure_filename
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent
+CONFIG_PATH = PROJECT_ROOT / "disaster_modality_config.json"
+UPLOAD_DIR = PROJECT_ROOT / "instance" / "uploads"
+ALLOWED_EXTENSIONS = {"tif", "tiff", "png", "jpg", "jpeg"}
+
+app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
+
+
+def load_config() -> dict:
+    with CONFIG_PATH.open("r", encoding="utf-8") as config_file:
+        return json.load(config_file)
+
+
+def get_domain(config: dict, domain_slug: str) -> dict | None:
+    return config["domains"].get(domain_slug)
+
+
+def allowed_file(filename: str) -> bool:
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def dummy_results(count: int = 10) -> list[dict]:
+    labels = [
+        "Arable land",
+        "Broad-leaved forest",
+        "Coniferous forest",
+        "Inland waters",
+        "Urban fabric",
+        "Pastures",
+        "Marine waters",
+    ]
+    randomizer = random.Random(42)
+    return [
+        {
+            "rank": index,
+            "patch_id": f"BEN-VAL-{index:04d}",
+            "score": f"{randomizer.uniform(0.75, 0.95):.3f}",
+            "label": randomizer.choice(labels),
+            "tone": (index % 5) + 1,
+        }
+        for index in range(1, count + 1)
+    ]
+
+
+@app.route("/")
+def domains():
+    return render_template("domain.html", config=load_config())
+
+
+@app.route("/<domain_slug>")
+def subcategories(domain_slug: str):
+    config = load_config()
+    domain = get_domain(config, domain_slug)
+    if domain is None:
+        return redirect(url_for("domains"))
+    return render_template(
+        "subcategory.html",
+        domain_slug=domain_slug,
+        domain=domain,
+    )
+
+
+@app.route("/search", methods=["GET", "POST"])
+def search():
+    config = load_config()
+    domain_slug = request.args.get("domain", "disaster-response")
+    subcategory_slug = request.args.get("subcategory", "flood-mapping")
+    domain = get_domain(config, domain_slug)
+    if domain is None:
+        return redirect(url_for("domains"))
+
+    subcategory = domain["subcategories"].get(subcategory_slug)
+    if subcategory is None:
+        subcategory_slug, subcategory = next(iter(domain["subcategories"].items()))
+
+    uploaded_filename = None
+    error = None
+    results = None
+    if request.method == "POST":
+        uploaded_file = request.files.get("image")
+        if uploaded_file is None or not uploaded_file.filename:
+            error = "Choose a satellite image before searching."
+        elif not allowed_file(uploaded_file.filename):
+            error = "Accepted formats are TIFF, PNG, and JPG."
+        else:
+            UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+            uploaded_filename = secure_filename(uploaded_file.filename)
+            uploaded_file.save(UPLOAD_DIR / uploaded_filename)
+            results = dummy_results()
+
+    return render_template(
+        "search.html",
+        domain_slug=domain_slug,
+        domain=domain,
+        subcategory=subcategory,
+        uploaded_filename=uploaded_filename,
+        results=results,
+        error=error,
+    )
+
+
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=int(__import__("os").environ.get("PORT", "5000")),
+        debug=False,
+    )

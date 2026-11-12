@@ -1,58 +1,68 @@
 """
-Week 5 - Trained Same-Modal Retrieval Evaluation.
+Week 5 - Trained Same-Modal Retrieval Evaluation (Scientific Revision).
 
 Evaluates:
     1. SAR -> SAR
     2. MS -> MS
 
-Metrics:
-    Recall@1
-    Recall@5
-    Recall@10
-    mAP
-    Average retrieval time per query
+Metrics (Reconciled Phase A.1):
+    HitRate@1, HitRate@5, HitRate@10:
+        Fraction of queries where at least one retrieved gallery patch
+        shares >= 1 land-cover label with the query (formerly reported as Recall@K).
+    mAP_ret@10:
+        Retrieved-normalized mean average precision at K=10, where precision
+        is normalized by the count of relevant items retrieved in top-K
+        (sum_{k=1}^K rel(k)). Formerly reported as mAP.
+    Average retrieval time per query (ms)
 
 Same-modal relevance:
     A gallery item is relevant when it shares at least one
     land-cover label with the query.
 
-The query item itself is excluded from retrieval.
+The query item itself is excluded from retrieval (K+1 candidate search).
 """
 
 from __future__ import annotations
 
-from pathlib import Path
+import argparse
+import sys
 import time
+from pathlib import Path
 
-import faiss
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from shared.config.settings import RESULTS_DIR, SPLITS_DIR
+except ImportError:
+    RESULTS_DIR = PROJECT_ROOT / "results" / "local_pc"
+    SPLITS_DIR = RESULTS_DIR / "week_02" / "splits"
+
+try:
+    import faiss
+except ImportError:
+    faiss = None
+
 import numpy as np
 import pandas as pd
 
 
 # ============================================================
-# PATHS
+# DEFAULT PATHS (Canonical Integration)
 # ============================================================
 
-TEST_CSV = Path("outputs/metadata/test_split.csv")
+DEFAULT_TEST_CSV = SPLITS_DIR / "test_split.csv"
+DEFAULT_EMBEDDINGS_DIR = RESULTS_DIR / "week_05" / "trained_embeddings"
+DEFAULT_INDEX_DIR = RESULTS_DIR / "week_05" / "faiss_indices"
+DEFAULT_REPORT_DIR = RESULTS_DIR / "week_05" / "evaluation" / "runs"
 
-EMBEDDINGS_DIR = Path("outputs/embeddings")
-INDEX_DIR = Path("outputs/indices")
-REPORT_DIR = Path("outputs/reports")
-
-SAR_EMBEDDINGS = (
-    EMBEDDINGS_DIR / "trained_test_sar_embeddings.npy"
-)
-
-MS_EMBEDDINGS = (
-    EMBEDDINGS_DIR / "trained_test_ms_embeddings.npy"
-)
-
-SAR_INDEX_PATH = INDEX_DIR / "sar_gallery.index"
-MS_INDEX_PATH = INDEX_DIR / "ms_gallery.index"
-
-OUTPUT_CSV = (
-    REPORT_DIR / "trained_same_modal_results.csv"
-)
+DEFAULT_SAR_EMBEDDINGS = DEFAULT_EMBEDDINGS_DIR / "trained_test_sar_embeddings.npy"
+DEFAULT_MS_EMBEDDINGS = DEFAULT_EMBEDDINGS_DIR / "trained_test_ms_embeddings.npy"
+DEFAULT_SAR_INDEX = DEFAULT_INDEX_DIR / "sar_gallery.index"
+DEFAULT_MS_INDEX = DEFAULT_INDEX_DIR / "ms_gallery.index"
+DEFAULT_OUTPUT_CSV = DEFAULT_REPORT_DIR / "trained_same_modal_results.csv"
 
 TOP_K = 10
 EXPECTED_SAMPLES = 4500
@@ -63,15 +73,16 @@ EXPECTED_DIMENSION = 512
 # LOAD TEST METADATA
 # ============================================================
 
-def load_test_metadata() -> pd.DataFrame:
+def load_test_metadata(csv_path: Optional[Path] = None) -> pd.DataFrame:
     """Load test metadata and validate required columns."""
+    target_csv = Path(csv_path) if csv_path else DEFAULT_TEST_CSV
 
-    if not TEST_CSV.exists():
+    if not target_csv.exists():
         raise FileNotFoundError(
-            f"Test CSV not found:\n{TEST_CSV}"
+            f"Test CSV not found:\n{target_csv}"
         )
 
-    df = pd.read_csv(TEST_CSV)
+    df = pd.read_csv(target_csv)
 
     required_columns = {
         "patch_id",
@@ -360,6 +371,23 @@ def evaluate_same_modal(
 
     results = {
         "Mode": mode_name,
+        "HitRate@1": (
+            recall_counts[1]
+            / total_queries
+            * 100.0
+        ),
+        "HitRate@5": (
+            recall_counts[5]
+            / total_queries
+            * 100.0
+        ),
+        "HitRate@10": (
+            recall_counts[10]
+            / total_queries
+            * 100.0
+        ),
+        "mAP_ret@10": map_at_10 * 100.0,
+        # Preserved historical metric labels for backward compatibility
         "Recall@1": (
             recall_counts[1]
             / total_queries
@@ -388,23 +416,23 @@ def evaluate_same_modal(
     )
 
     print(
-        f"Recall@1            : "
-        f"{results['Recall@1']:.4f}%"
+        f"HitRate@1 (Recall@1): "
+        f"{results['HitRate@1']:.4f}%"
     )
 
     print(
-        f"Recall@5            : "
-        f"{results['Recall@5']:.4f}%"
+        f"HitRate@5 (Recall@5): "
+        f"{results['HitRate@5']:.4f}%"
     )
 
     print(
-        f"Recall@10           : "
-        f"{results['Recall@10']:.4f}%"
+        f"HitRate@10(Recall@10: "
+        f"{results['HitRate@10']:.4f}%"
     )
 
     print(
-        f"mAP@10              : "
-        f"{results['mAP']:.4f}%"
+        f"mAP_ret@10 (mAP)    : "
+        f"{results['mAP_ret@10']:.4f}%"
     )
 
     print(
@@ -420,17 +448,64 @@ def evaluate_same_modal(
 # ============================================================
 
 def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Week 5 Same-Modal Retrieval Evaluation (HitRate@K & mAP_ret@10)"
+    )
+    parser.add_argument(
+        "--test-csv",
+        type=Path,
+        default=DEFAULT_TEST_CSV,
+        help="Path to test_split.csv",
+    )
+    parser.add_argument(
+        "--sar-embeddings",
+        type=Path,
+        default=DEFAULT_SAR_EMBEDDINGS,
+        help="Path to trained test SAR embeddings (.npy)",
+    )
+    parser.add_argument(
+        "--ms-embeddings",
+        type=Path,
+        default=DEFAULT_MS_EMBEDDINGS,
+        help="Path to trained test MS embeddings (.npy)",
+    )
+    parser.add_argument(
+        "--sar-index",
+        type=Path,
+        default=DEFAULT_SAR_INDEX,
+        help="Path to SAR FAISS gallery index",
+    )
+    parser.add_argument(
+        "--ms-index",
+        type=Path,
+        default=DEFAULT_MS_INDEX,
+        help="Path to MS FAISS gallery index",
+    )
+    parser.add_argument(
+        "--output-csv",
+        type=Path,
+        default=DEFAULT_OUTPUT_CSV,
+        help="Output CSV path (defaults to a separate run directory to protect historical records)",
+    )
+    args = parser.parse_args()
 
     print("=" * 70)
-    print("WEEK 5 — TRAINED SAME-MODAL RETRIEVAL")
+    print("WEEK 5 — TRAINED SAME-MODAL RETRIEVAL (SCIENTIFIC EVALUATION)")
     print("=" * 70)
     print()
+
+    if faiss is None:
+        raise ImportError(
+            "faiss is not installed in the active Python environment.\n"
+            "Please install faiss-cpu to execute retrieval evaluation:\n"
+            "    pip install faiss-cpu"
+        )
 
     # --------------------------------------------------------
     # LOAD METADATA
     # --------------------------------------------------------
 
-    metadata = load_test_metadata()
+    metadata = load_test_metadata(args.test_csv)
 
     patch_ids = (
         metadata["patch_id"]
@@ -456,12 +531,12 @@ def main() -> None:
     # --------------------------------------------------------
 
     sar_embeddings = load_embeddings(
-        SAR_EMBEDDINGS,
+        args.sar_embeddings,
         "SAR",
     )
 
     ms_embeddings = load_embeddings(
-        MS_EMBEDDINGS,
+        args.ms_embeddings,
         "MS",
     )
 
@@ -479,36 +554,34 @@ def main() -> None:
     # LOAD FAISS INDICES
     # --------------------------------------------------------
 
-    if not SAR_INDEX_PATH.exists():
+    if not args.sar_index.exists():
         raise FileNotFoundError(
             f"SAR index not found:\n"
-            f"{SAR_INDEX_PATH}"
+            f"{args.sar_index}"
         )
 
-    if not MS_INDEX_PATH.exists():
+    if not args.ms_index.exists():
         raise FileNotFoundError(
             f"MS index not found:\n"
-            f"{MS_INDEX_PATH}"
+            f"{args.ms_index}"
         )
 
     sar_index = faiss.read_index(
-        str(SAR_INDEX_PATH)
+        str(args.sar_index)
     )
 
     ms_index = faiss.read_index(
-        str(MS_INDEX_PATH)
+        str(args.ms_index)
     )
 
     if sar_index.ntotal != EXPECTED_SAMPLES:
         raise ValueError(
-            "SAR index does not contain "
-            "4,500 vectors."
+            f"SAR index does not contain {EXPECTED_SAMPLES} vectors: got {sar_index.ntotal}"
         )
 
     if ms_index.ntotal != EXPECTED_SAMPLES:
         raise ValueError(
-            "MS index does not contain "
-            "4,500 vectors."
+            f"MS index does not contain {EXPECTED_SAMPLES} vectors: got {ms_index.ntotal}"
         )
 
     print(
@@ -554,13 +627,13 @@ def main() -> None:
         ]
     )
 
-    REPORT_DIR.mkdir(
+    args.output_csv.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
     results_df.to_csv(
-        OUTPUT_CSV,
+        args.output_csv,
         index=False,
     )
 
@@ -581,7 +654,7 @@ def main() -> None:
     print()
     print(
         f"[OK] Results saved: "
-        f"{OUTPUT_CSV}"
+        f"{args.output_csv}"
     )
 
 

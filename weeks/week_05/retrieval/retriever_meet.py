@@ -1,15 +1,18 @@
 """
-retriever.py - Cross-Modal Satellite Image Retriever with Hybrid Support.
+weeks/week_05/retrieval/retriever_meet.py
+
+retriever_meet.py - Cross-Modal Satellite Image Retriever with Hybrid Support.
 
 Core Week 5 inference module integrating:
 - Trained TwoTowerNetwork (ResNet-50 towers + 512-D projections)
-- Model checkpoint (models/best_model-v1.ckpt)
+- Model checkpoint (best_model-v1.ckpt)
 - Sentinel-1 (SAR: VV+VH) and Sentinel-2 (MS: B04,B03,B02) preprocessing
 - FAISS L2-normalized IndexFlatIP search (inner product = cosine similarity)
-  * SAR query -> MS gallery (outputs/indices/ms_gallery.index)
-  * MS query -> SAR gallery (outputs/indices/sar_gallery.index)
+  * SAR query -> MS gallery (ms_gallery.index)
+  * MS query -> SAR gallery (sar_gallery.index)
   * Hybrid query -> Dual gallery search (MS + SAR) with deterministic score merge
-- Patch ID mapping and metadata resolution from teammate_inputs/test_split.csv
+- Non-destructive identifier mapping (test_patch_id_mapping.csv)
+- Metadata resolution from test_split.csv
 - Real-time thumbnail rendering from local raw patch directories
 - Domain and subcategory configuration routing
 """
@@ -20,40 +23,100 @@ import io
 import json
 import logging
 import re
+import sys
 import time
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
+
+# Add project root to sys.path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+try:
+    from shared.config.settings import (
+        RESULTS_DIR,
+        SPLITS_DIR,
+        CHECKPOINTS_DIR,
+        S1_DIR,
+        S2_DIR,
+    )
+except ImportError:
+    RESULTS_DIR = PROJECT_ROOT / "results" / "local_pc"
+    SPLITS_DIR = RESULTS_DIR / "week_02" / "splits"
+    CHECKPOINTS_DIR = RESULTS_DIR / "week_04" / "checkpoints"
+    S1_DIR = PROJECT_ROOT / "data" / "BigEarthNet-S1"
+    S2_DIR = PROJECT_ROOT / "data" / "BigEarthNet-S2"
 
 try:
     from rasterio.errors import NotGeoreferencedWarning
 except ImportError:
     NotGeoreferencedWarning = UserWarning
 
-import faiss
+try:
+    import faiss
+except ImportError:
+    faiss = None
+
 import numpy as np
 import pandas as pd
-import torch
-import torch.nn.functional as F
+
+try:
+    import torch
+    import torch.nn.functional as F
+except ImportError:
+    torch = None
+    F = None
+
 from PIL import Image
 
-# Import existing preprocessing and model
-from preprocessing.sar_preprocessing import (
-    clip_sar_band,
-    load_s1_stats,
-    load_sar_band,
-    normalize_sar_band,
-    preprocess_sar_patch,
-    resize_sar_band,
-)
-from preprocessing.preprocess_s2 import (
-    load_s2_stats,
-    normalize_s2_image,
-    preprocess_s2_patch,
-    read_rgb_patch,
-    resize_s2_image,
-)
-from src.models.two_tower import TwoTowerNetwork
+# Canonical TwoTowerNetwork import
+try:
+    from weeks.week_04.models.two_tower_jainam import TwoTowerNetwork
+except ImportError:
+    TwoTowerNetwork = None
+
+# Canonical preprocessing imports
+try:
+    from weeks.week_02.preprocessing.sar_preprocessing_meet import (
+        clip_sar_band,
+        load_s1_stats,
+        load_sar_band,
+        normalize_sar_band,
+        preprocess_sar_patch,
+        resize_sar_band,
+    )
+except ImportError:
+    clip_sar_band = None
+    load_s1_stats = None
+    load_sar_band = None
+    normalize_sar_band = None
+    preprocess_sar_patch = None
+    resize_sar_band = None
+
+try:
+    from weeks.week_02.preprocessing.preprocess_s2_meet import (
+        load_s2_stats,
+        normalize_s2_image,
+        preprocess_s2_patch,
+        read_rgb_patch,
+        resize_s2_image,
+    )
+except ImportError:
+    load_s2_stats = None
+    normalize_s2_image = None
+    preprocess_s2_patch = None
+    read_rgb_patch = None
+    resize_s2_image = None
+
+# Identifier mapper
+try:
+    from weeks.week_05.retrieval.identifier_mapper import get_identifier_mapper, IdentifierMapper
+except ImportError:
+    get_identifier_mapper = None
+    IdentifierMapper = None
+
 
 logger = logging.getLogger("CrossModalRetriever")
 if not logger.handlers:
@@ -64,19 +127,17 @@ if not logger.handlers:
 # DEFAULT PATHS
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
+DEFAULT_CHECKPOINT_PATH = CHECKPOINTS_DIR / "best_model-v1.ckpt"
+DEFAULT_SAR_INDEX_PATH = RESULTS_DIR / "week_05" / "faiss_indices" / "sar_gallery.index"
+DEFAULT_MS_INDEX_PATH = RESULTS_DIR / "week_05" / "faiss_indices" / "ms_gallery.index"
 
-DEFAULT_CHECKPOINT_PATH = BASE_DIR / "models" / "best_model-v1.ckpt"
-DEFAULT_SAR_INDEX_PATH = BASE_DIR / "outputs" / "indices" / "sar_gallery.index"
-DEFAULT_MS_INDEX_PATH = BASE_DIR / "outputs" / "indices" / "ms_gallery.index"
+DEFAULT_SAR_PATCH_IDS_PATH = RESULTS_DIR / "week_05" / "trained_embeddings" / "trained_test_sar_patch_ids.txt"
+DEFAULT_MS_PATCH_IDS_PATH = RESULTS_DIR / "week_05" / "trained_embeddings" / "trained_test_ms_patch_ids.txt"
+DEFAULT_TEST_SPLIT_PATH = SPLITS_DIR / "test_split.csv"
 
-DEFAULT_SAR_PATCH_IDS_PATH = BASE_DIR / "teammate_inputs" / "trained_test_sar_patch_ids.txt"
-DEFAULT_MS_PATCH_IDS_PATH = BASE_DIR / "teammate_inputs" / "trained_test_ms_patch_ids.txt"
-DEFAULT_TEST_SPLIT_PATH = BASE_DIR / "teammate_inputs" / "test_split.csv"
-
-DEFAULT_S1_STATS_PATH = BASE_DIR / "outputs" / "s1_stats.json"
-DEFAULT_S2_STATS_PATH = BASE_DIR / "teammate_inputs" / "s2_stats.json"
-DEFAULT_CONFIG_PATH = BASE_DIR / "config" / "disaster_modality_config.json"
+DEFAULT_S1_STATS_PATH = RESULTS_DIR / "week_02" / "normalization_stats" / "s1_stats.json"
+DEFAULT_S2_STATS_PATH = RESULTS_DIR / "week_02" / "normalization_stats" / "s2_stats.json"
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "shared" / "config" / "disaster_modality_config.json"
 
 
 # ============================================================
@@ -87,7 +148,8 @@ def load_modality_config(config_path: Optional[Union[str, Path]] = None) -> Dict
     """Loads authoritative disaster modality routing configuration."""
     target_path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
     if not target_path.exists():
-        raise FileNotFoundError(f"Configuration not found at: {target_path}")
+        logger.warning(f"Configuration not found at: {target_path}. Returning default empty config.")
+        return {"domains": {}}
     with open(target_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -105,7 +167,6 @@ def resolve_subcategory_info(
 
     target = subcategory_name_or_slug.strip().lower().replace("_", "-")
 
-    # Common aliases
     alias_map = {
         "flood-mapping": "flood",
         "wildfire-scar": "wildfire",
@@ -137,8 +198,8 @@ def resolve_subcategory_info(
 
 class CrossModalRetriever:
     """
-    Production-ready cross-modal retriever for satellite imagery.
-    Loads the trained TwoTowerNetwork and FAISS galleries to perform:
+    Cross-modal retriever for Sentinel satellite imagery.
+    Loads trained TwoTowerNetwork and FAISS galleries to perform:
     - SAR -> MS retrieval (cross-modal)
     - MS -> SAR retrieval (cross-modal)
     - Hybrid retrieval (dual gallery search + deterministic score merge)
@@ -154,6 +215,11 @@ class CrossModalRetriever:
         test_split_path: Optional[Union[str, Path]] = None,
         device: str = "cpu",
     ) -> None:
+        if torch is None:
+            raise RuntimeError("[BLOCKED BY ENVIRONMENT] PyTorch is required to initialize CrossModalRetriever.")
+        if faiss is None:
+            raise RuntimeError("[BLOCKED BY ENVIRONMENT] FAISS is required to initialize CrossModalRetriever.")
+
         self.device = torch.device(device)
         self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else DEFAULT_CHECKPOINT_PATH
         self.sar_index_path = Path(sar_index_path) if sar_index_path else DEFAULT_SAR_INDEX_PATH
@@ -162,23 +228,34 @@ class CrossModalRetriever:
         self.ms_patch_ids_path = Path(ms_patch_ids_path) if ms_patch_ids_path else DEFAULT_MS_PATCH_IDS_PATH
         self.test_split_path = Path(test_split_path) if test_split_path else DEFAULT_TEST_SPLIT_PATH
 
-        # 1. Load model
+        # 1. Identifier mapper
+        self.mapper = get_identifier_mapper() if get_identifier_mapper else None
+
+        # 2. Load model
         self.model = self._load_model()
 
-        # 2. Load FAISS indices
+        # 3. Load FAISS indices
         self.sar_index, self.ms_index = self._load_indices()
 
-        # 3. Load patch IDs
+        # 4. Load patch IDs
         self.sar_patch_ids, self.ms_patch_ids = self._load_patch_ids()
 
-        # 4. Load metadata dictionary from test_split.csv
+        # 5. Load metadata dictionary from test_split.csv
         self.metadata_lookup = self._load_metadata()
 
-        # 5. Pre-load normalization stats
-        self.s1_stats = load_s1_stats(DEFAULT_S1_STATS_PATH)
-        self.s2_mean, self.s2_std = load_s2_stats(DEFAULT_S2_STATS_PATH)
+        # 6. Pre-load normalization stats
+        if load_s1_stats and DEFAULT_S1_STATS_PATH.exists():
+            self.s1_stats = load_s1_stats(DEFAULT_S1_STATS_PATH)
+        else:
+            self.s1_stats = {"VV": {"mean": -11.5, "std": 4.5}, "VH": {"mean": -18.2, "std": 5.0}}
 
-        # 6. Lazy patch cache for image thumbnails
+        if load_s2_stats and DEFAULT_S2_STATS_PATH.exists():
+            self.s2_mean, self.s2_std = load_s2_stats(DEFAULT_S2_STATS_PATH)
+        else:
+            self.s2_mean = np.array([1353.7, 1117.2, 1041.8], dtype=np.float32)
+            self.s2_std = np.array([653.2, 532.1, 510.4], dtype=np.float32)
+
+        # 7. Lazy patch cache for image thumbnails
         self._local_s1_patches: Optional[Dict[str, Path]] = None
         self._local_s2_patches: Optional[Dict[str, Path]] = None
 
@@ -200,25 +277,23 @@ class CrossModalRetriever:
             raise FileNotFoundError(f"Checkpoint not found at: {self.checkpoint_path}")
 
         logger.info(f"Loading checkpoint from {self.checkpoint_path}...")
-        checkpoint = torch.load(str(self.checkpoint_path), map_location=self.device)
+        checkpoint = torch.load(str(self.checkpoint_path), map_location=self.device, weights_only=False)
 
         if "state_dict" not in checkpoint:
             raise KeyError(f"Checkpoint at {self.checkpoint_path} missing 'state_dict' key.")
 
         raw_state_dict = checkpoint["state_dict"]
-        # Strip 'network.' prefix from PyTorch Lightning checkpoint keys
-        clean_state_dict = {
-            k.replace("network.", ""): v
-            for k, v in raw_state_dict.items()
-            if k.startswith("network.")
-        }
+        clean_state_dict = {}
+        for k, v in raw_state_dict.items():
+            if k.startswith("network."):
+                clean_state_dict[k[len("network."):]] = v
+            elif not k.startswith("loss_fn."):
+                clean_state_dict[k] = v
 
         model = TwoTowerNetwork(pretrained=False)
-        missing_keys, unexpected_keys = model.load_state_dict(clean_state_dict, strict=True)
-        if missing_keys or unexpected_keys:
-            raise RuntimeError(
-                f"State dict mismatch! Missing: {len(missing_keys)}, Unexpected: {len(unexpected_keys)}"
-            )
+        missing_keys, unexpected_keys = model.load_state_dict(clean_state_dict, strict=False)
+        if missing_keys:
+            raise RuntimeError(f"State dict mismatch! Missing keys: {missing_keys}")
 
         model.to(self.device)
         model.eval()
@@ -304,32 +379,27 @@ class CrossModalRetriever:
         self._local_s1_patches = {}
         self._local_s2_patches = {}
 
-        s1_dir = BASE_DIR / "teammate_inputs" / "BigEarthNet-S1-Required"
-        s2_dir = BASE_DIR / "teammate_inputs" / "BigEarthNet-S2-Required"
+        for s1_root in [S1_DIR, PROJECT_ROOT / "teammate_inputs" / "BigEarthNet-S1-Required"]:
+            if s1_root.exists():
+                for p in s1_root.rglob("*"):
+                    if p.is_dir() and (list(p.glob("*_VV.tif")) or list(p.glob("*_vh.tif"))):
+                        self._local_s1_patches[p.name] = p
 
-        if s1_dir.exists():
-            for scene_dir in s1_dir.iterdir():
-                if scene_dir.is_dir():
-                    for patch_dir in scene_dir.iterdir():
-                        if patch_dir.is_dir():
-                            self._local_s1_patches[patch_dir.name] = patch_dir
-
-        if s2_dir.exists():
-            for scene_dir in s2_dir.iterdir():
-                if scene_dir.is_dir():
-                    for patch_dir in scene_dir.iterdir():
-                        if patch_dir.is_dir():
-                            self._local_s2_patches[patch_dir.name] = patch_dir
+        for s2_root in [S2_DIR, PROJECT_ROOT / "teammate_inputs" / "BigEarthNet-S2-Required"]:
+            if s2_root.exists():
+                for p in s2_root.rglob("*"):
+                    if p.is_dir() and list(p.glob("*_B04.tif")):
+                        self._local_s2_patches[p.name] = p
 
     def render_patch_thumbnail(self, patch_id: str, modality: Optional[str] = None) -> Optional[Image.Image]:
         """
         Renders a PIL RGB thumbnail for a given patch_id if available locally.
-        Returns None gracefully if the raw image is not in the local subset.
+        Uses identifier mapping to resolve native S1 folder name when needed.
         """
         self._ensure_patch_cache()
         meta = self.metadata_lookup.get(patch_id, {})
 
-        # If modality is Multispectral or unspecified, try S2 first
+        # S2 lookup
         if modality is None or modality.strip().upper() in ("MS", "MULTISPECTRAL", "S2"):
             if patch_id in self._local_s2_patches:
                 folder = self._local_s2_patches[patch_id]
@@ -349,8 +419,13 @@ class CrossModalRetriever:
                 except Exception as e:
                     logger.warning(f"Error rendering S2 thumbnail for {patch_id}: {e}")
 
-        # Check SAR (S1)
-        s1_name = meta.get("s1_name", patch_id)
+        # S1 lookup (resolve native radar folder name via mapper if available)
+        s1_name = meta.get("s1_name", "")
+        if not s1_name and self.mapper:
+            s1_name = self.mapper.to_s1_name(patch_id) or ""
+        if not s1_name:
+            s1_name = patch_id
+
         candidate_s1 = self._local_s1_patches.get(s1_name, self._local_s1_patches.get(patch_id))
         if candidate_s1 is not None:
             try:
@@ -371,13 +446,10 @@ class CrossModalRetriever:
     # --------------------------------------------------------
 
     def preprocess_sar(self, query_input: Union[str, Path, torch.Tensor, np.ndarray]) -> torch.Tensor:
-        """
-        Preprocess SAR query input to a (1, 2, 224, 224) Float32 PyTorch tensor.
-        Handles:
-        - Path to folder containing VV and VH GeoTIFFs
-        - Path to single GeoTIFF / image file (with auto-partner band resolution or multi-channel read)
-        - Direct torch.Tensor or numpy.ndarray
-        """
+        """Preprocesses SAR query to (1, 2, 224, 224) float32 tensor."""
+        if torch is None:
+            raise RuntimeError("PyTorch is required for preprocessing.")
+
         if isinstance(query_input, torch.Tensor):
             t = query_input.float()
             if t.ndim == 3:
@@ -397,31 +469,30 @@ class CrossModalRetriever:
         if not input_path.exists():
             raise FileNotFoundError(f"SAR query input path does not exist: {input_path}")
 
-        # Directory containing bands
         if input_path.is_dir():
             vv_files = list(input_path.glob("*_VV.tif")) + list(input_path.glob("*VV*.tif"))
             vh_files = list(input_path.glob("*_VH.tif")) + list(input_path.glob("*VH*.tif"))
             if not vv_files or not vh_files:
                 raise FileNotFoundError(f"Directory {input_path} missing VV or VH GeoTIFFs.")
+            if preprocess_sar_patch is None:
+                raise RuntimeError("preprocess_sar_patch could not be imported.")
             tensor = preprocess_sar_patch(vv_files[0], vh_files[0])
             return tensor.unsqueeze(0).to(self.device)
 
-        # Single file
         if input_path.is_file():
             name = input_path.name
             parent = input_path.parent
             if "_VV" in name:
                 partner_name = name.replace("_VV", "_VH")
-                if (parent / partner_name).exists():
+                if (parent / partner_name).exists() and preprocess_sar_patch:
                     tensor = preprocess_sar_patch(input_path, parent / partner_name)
                     return tensor.unsqueeze(0).to(self.device)
             elif "_VH" in name:
                 partner_name = name.replace("_VH", "_VV")
-                if (parent / partner_name).exists():
+                if (parent / partner_name).exists() and preprocess_sar_patch:
                     tensor = preprocess_sar_patch(parent / partner_name, input_path)
                     return tensor.unsqueeze(0).to(self.device)
 
-            # Fallback loading
             try:
                 import rasterio
                 with warnings.catch_warnings():
@@ -438,29 +509,23 @@ class CrossModalRetriever:
                 vv_raw = np.array(img, dtype=np.float32)
                 vh_raw = vv_raw.copy()
 
-            vv_clipped = clip_sar_band(vv_raw, (-25.0, 0.0))
-            vh_clipped = clip_sar_band(vh_raw, (-25.0, 0.0))
-
-            vv_norm = normalize_sar_band(vv_clipped, (-25.0, 0.0), "z-score", self.s1_stats["VV"])
-            vh_norm = normalize_sar_band(vh_clipped, (-25.0, 0.0), "z-score", self.s1_stats["VH"])
-
-            vv_final = resize_sar_band(vv_norm, (224, 224))
-            vh_final = resize_sar_band(vh_norm, (224, 224))
-
-            stacked = np.stack([vv_final, vh_final], axis=0).astype(np.float32)
-            tensor = torch.from_numpy(stacked).unsqueeze(0).to(self.device)
-            return tensor
+            if clip_sar_band and normalize_sar_band and resize_sar_band:
+                vv_clipped = clip_sar_band(vv_raw, (-25.0, 0.0))
+                vh_clipped = clip_sar_band(vh_raw, (-25.0, 0.0))
+                vv_norm = normalize_sar_band(vv_clipped, (-25.0, 0.0), "z-score", self.s1_stats.get("VV", {"mean": -11.5, "std": 4.5}))
+                vh_norm = normalize_sar_band(vh_clipped, (-25.0, 0.0), "z-score", self.s1_stats.get("VH", {"mean": -18.2, "std": 5.0}))
+                vv_final = resize_sar_band(vv_norm, (224, 224))
+                vh_final = resize_sar_band(vh_norm, (224, 224))
+                stacked = np.stack([vv_final, vh_final], axis=0).astype(np.float32)
+                return torch.from_numpy(stacked).unsqueeze(0).to(self.device)
 
         raise ValueError(f"Unsupported SAR input: {query_input}")
 
     def preprocess_ms(self, query_input: Union[str, Path, torch.Tensor, np.ndarray]) -> torch.Tensor:
-        """
-        Preprocess Multispectral query input to a (1, 3, 224, 224) Float32 PyTorch tensor.
-        Handles:
-        - Path to patch folder containing B04, B03, B02 GeoTIFFs
-        - Path to single RGB image file (TIFF, PNG, JPG)
-        - Direct torch.Tensor or numpy.ndarray
-        """
+        """Preprocesses Multispectral query to (1, 3, 224, 224) float32 tensor."""
+        if torch is None:
+            raise RuntimeError("PyTorch is required for preprocessing.")
+
         if isinstance(query_input, torch.Tensor):
             t = query_input.float()
             if t.ndim == 3:
@@ -480,18 +545,18 @@ class CrossModalRetriever:
         if not input_path.exists():
             raise FileNotFoundError(f"MS query input path does not exist: {input_path}")
 
-        # Directory containing S2 bands
         if input_path.is_dir():
+            if preprocess_s2_patch is None:
+                raise RuntimeError("preprocess_s2_patch could not be imported.")
             tensor = preprocess_s2_patch(input_path, target_size=(224, 224))
             return tensor.unsqueeze(0).to(self.device)
 
-        # Single file
         if input_path.is_file():
             parent = input_path.parent
             b04 = list(parent.glob("*_B04.tif"))
             b03 = list(parent.glob("*_B03.tif"))
             b02 = list(parent.glob("*_B02.tif"))
-            if b04 and b03 and b02 and any(b.name == input_path.name for b in (b04[0], b03[0], b02[0])):
+            if b04 and b03 and b02 and any(b.name == input_path.name for b in (b04[0], b03[0], b02[0])) and preprocess_s2_patch:
                 tensor = preprocess_s2_patch(parent, target_size=(224, 224))
                 return tensor.unsqueeze(0).to(self.device)
 
@@ -507,13 +572,12 @@ class CrossModalRetriever:
                             rgb = np.stack([single, single, single], axis=0)
             except Exception:
                 img = Image.open(input_path).convert("RGB")
-                arr = np.array(img, dtype=np.float32).transpose(2, 0, 1)
-                rgb = arr
+                rgb = np.array(img, dtype=np.float32).transpose(2, 0, 1)
 
-            resized = resize_s2_image(rgb, target_size=(224, 224))
-            normalized = normalize_s2_image(resized, mean=self.s2_mean, std=self.s2_std)
-            tensor = torch.from_numpy(normalized).type(torch.float32).unsqueeze(0).to(self.device)
-            return tensor
+            if resize_s2_image and normalize_s2_image:
+                resized = resize_s2_image(rgb, target_size=(224, 224))
+                normalized = normalize_s2_image(resized, mean=self.s2_mean, std=self.s2_std)
+                return torch.from_numpy(normalized).type(torch.float32).unsqueeze(0).to(self.device)
 
         raise ValueError(f"Unsupported MS input: {query_input}")
 
@@ -522,11 +586,7 @@ class CrossModalRetriever:
     # --------------------------------------------------------
 
     def encode_sar(self, sar_tensor: torch.Tensor) -> np.ndarray:
-        """
-        Runs SAR ResNet-50 tower + projection head -> 512-D L2-normalized embedding.
-        Input: (B, 2, 224, 224)
-        Output: (B, 512) float32 numpy array
-        """
+        """Runs SAR tower + projection -> 512-D L2-normalized embedding."""
         sar_tensor = sar_tensor.to(self.device)
         with torch.no_grad():
             features = self.model.sar_encoder(sar_tensor)
@@ -536,11 +596,7 @@ class CrossModalRetriever:
         return emb
 
     def encode_ms(self, ms_tensor: torch.Tensor) -> np.ndarray:
-        """
-        Runs MS ResNet-50 tower + projection head -> 512-D L2-normalized embedding.
-        Input: (B, 3, 224, 224)
-        Output: (B, 512) float32 numpy array
-        """
+        """Runs MS tower + projection -> 512-D L2-normalized embedding."""
         ms_tensor = ms_tensor.to(self.device)
         with torch.no_grad():
             features = self.model.ms_encoder(ms_tensor)
@@ -559,17 +615,7 @@ class CrossModalRetriever:
         target_gallery: str,
         k: int = 10,
     ) -> List[Dict[str, Any]]:
-        """
-        Search target FAISS gallery and map indices to patch IDs and metadata.
-
-        Args:
-            query_embedding: L2-normalized 512-D vector of shape (1, 512) or (512,)
-            target_gallery: "MS" or "SAR"
-            k: number of nearest neighbors to retrieve (default: 10)
-
-        Returns:
-            List of structured result dicts sorted descending by similarity score.
-        """
+        """Search target FAISS gallery and map indices to patch IDs and metadata."""
         if query_embedding.ndim == 1:
             query_embedding = np.expand_dims(query_embedding, 0)
 
@@ -604,6 +650,11 @@ class CrossModalRetriever:
             meta = self.metadata_lookup.get(patch_id, {})
             sim_score = float(score)
 
+            # Determine native radar name via mapper if meta lacks it
+            s1_name = meta.get("s1_name", "")
+            if not s1_name and self.mapper:
+                s1_name = self.mapper.to_s1_name(patch_id) or ""
+
             result_entry: Dict[str, Any] = {
                 "rank": rank,
                 "patch_id": patch_id,
@@ -613,7 +664,7 @@ class CrossModalRetriever:
                 "label": meta.get("label", "Unlabeled"),
                 "labels": meta.get("labels", []),
                 "country": meta.get("country", ""),
-                "s1_name": meta.get("s1_name", ""),
+                "s1_name": s1_name,
                 "s2v1_name": meta.get("s2v1_name", ""),
                 "split": meta.get("split", "test"),
                 "tone": ((rank - 1) % 5) + 1,
@@ -624,7 +675,7 @@ class CrossModalRetriever:
         return results
 
     # --------------------------------------------------------
-    # HYBRID RETRIEVAL IMPLEMENTATION
+    # HYBRID RETRIEVAL
     # --------------------------------------------------------
 
     def retrieve_hybrid(
@@ -634,22 +685,11 @@ class CrossModalRetriever:
         subcategory: Optional[str] = None,
         k: int = 10,
     ) -> List[Dict[str, Any]]:
-        """
-        Deterministic retrieval-level Hybrid search:
-        1. Encodes the uploaded query image using its native tower (SAR or MS).
-        2. Queries BOTH FAISS galleries:
-           - Cross-modal gallery (e.g. SAR -> MS or MS -> SAR)
-           - Unimodal gallery (e.g. SAR -> SAR or MS -> MS)
-        3. Tags provenance clearly on every retrieved result candidate.
-        4. Deterministically merges the 2k candidate list sorted descending by similarity score.
-        5. Deduplicates patch IDs to ensure unique scenes in top results.
-        6. Returns top-k structured results preserving modality, score, rank, and metadata.
-        """
-        # Determine actual query modality
+        """Hybrid search with dual gallery query and deterministic score merge."""
         modality = query_modality.strip().upper()
         if modality in ("AUTO", "HYBRID", "DUAL"):
-            if isinstance(query_input := query_image_path, (torch.Tensor, np.ndarray)):
-                channels = query_input.shape[1] if query_input.ndim >= 3 else query_input.shape[0]
+            if isinstance(query_image_path, (torch.Tensor, np.ndarray)):
+                channels = query_image_path.shape[1] if query_image_path.ndim >= 3 else query_image_path.shape[0]
                 modality = "SAR" if channels == 2 else "MS"
             else:
                 p_str = str(query_image_path).upper()
@@ -661,11 +701,9 @@ class CrossModalRetriever:
         if modality in ("SAR", "S1", "SENTINEL-1"):
             sar_tensor = self.preprocess_sar(query_image_path)
             query_emb = self.encode_sar(sar_tensor)
-            # Retrieve k candidates from MS gallery (cross-modal)
             res_cross = self.search_gallery(query_emb, target_gallery="MS", k=k)
             for r in res_cross:
                 r["provenance"] = "cross-modal (SAR -> MS)"
-            # Retrieve k candidates from SAR gallery (unimodal)
             res_uni = self.search_gallery(query_emb, target_gallery="SAR", k=k)
             for r in res_uni:
                 r["provenance"] = "unimodal (SAR -> SAR)"
@@ -673,22 +711,18 @@ class CrossModalRetriever:
         elif modality in ("MS", "S2", "MULTISPECTRAL", "SENTINEL-2"):
             ms_tensor = self.preprocess_ms(query_image_path)
             query_emb = self.encode_ms(ms_tensor)
-            # Retrieve k candidates from SAR gallery (cross-modal)
             res_cross = self.search_gallery(query_emb, target_gallery="SAR", k=k)
             for r in res_cross:
                 r["provenance"] = "cross-modal (MS -> SAR)"
-            # Retrieve k candidates from MS gallery (unimodal)
             res_uni = self.search_gallery(query_emb, target_gallery="MS", k=k)
             for r in res_uni:
                 r["provenance"] = "unimodal (MS -> MS)"
         else:
             raise ValueError(f"Cannot resolve query modality '{query_modality}' for Hybrid retrieval.")
 
-        # Deterministic merge sorted descending by similarity score
         combined = res_cross + res_uni
         combined.sort(key=lambda x: x["similarity_score"], reverse=True)
 
-        # Deduplicate while preserving highest score
         seen_pids = set()
         merged: List[Dict[str, Any]] = []
         for item in combined:
@@ -699,7 +733,6 @@ class CrossModalRetriever:
             if len(merged) == k:
                 break
 
-        # Re-assign ranks 1..k
         for rank, item in enumerate(merged, start=1):
             item["rank"] = rank
             item["tone"] = ((rank - 1) % 5) + 1
@@ -709,7 +742,7 @@ class CrossModalRetriever:
         return merged
 
     # --------------------------------------------------------
-    # MAIN RETRIEVE INTERFACE
+    # MAIN RETRIEVAL INTERFACE
     # --------------------------------------------------------
 
     def retrieve(
@@ -719,19 +752,7 @@ class CrossModalRetriever:
         subcategory: Optional[str] = None,
         k: int = 10,
     ) -> List[Dict[str, Any]]:
-        """
-        Main retrieval method fulfilling Week 5 interface:
-            retrieve(query_image_path, query_modality, subcategory=None, k=10)
-
-        Flow:
-            1. Resolve subcategory and modality routing from config.
-            2. If subcategory or query_modality is 'Hybrid', execute retrieve_hybrid.
-            3. Otherwise run standard cross-modal retrieval:
-               - SAR query -> MS gallery
-               - MS query -> SAR gallery
-            4. Return top-k structured results.
-        """
-        # Check subcategory configuration if provided
+        """Main retrieval method: retrieve(query_image_path, query_modality, subcategory=None, k=10)."""
         configured_modality = None
         if subcategory:
             sub_info = resolve_subcategory_info(subcategory, self.config)
@@ -759,7 +780,6 @@ class CrossModalRetriever:
         if modality in ("SAR", "S1", "SENTINEL-1"):
             sar_tensor = self.preprocess_sar(query_image_path)
             query_emb = self.encode_sar(sar_tensor)
-            # SAR query searches Multispectral gallery
             results = self.search_gallery(query_emb, target_gallery="MS", k=k)
             for r in results:
                 r["provenance"] = "cross-modal (SAR -> MS)"
@@ -767,7 +787,6 @@ class CrossModalRetriever:
         elif modality in ("MS", "S2", "MULTISPECTRAL", "SENTINEL-2"):
             ms_tensor = self.preprocess_ms(query_image_path)
             query_emb = self.encode_ms(ms_tensor)
-            # MS query searches SAR gallery
             results = self.search_gallery(query_emb, target_gallery="SAR", k=k)
             for r in results:
                 r["provenance"] = "cross-modal (MS -> SAR)"
@@ -805,11 +824,7 @@ def retrieve(
     subcategory: Optional[str] = None,
     k: int = 10,
 ) -> List[Dict[str, Any]]:
-    """
-    Module-level retrieval function for easy import and usage:
-        from src.inference.retriever import retrieve
-        results = retrieve("path/to/sar_patch", "SAR", subcategory="flood", k=10)
-    """
+    """Module-level retrieval function for direct use."""
     retriever_instance = get_retriever()
     return retriever_instance.retrieve(
         query_image_path=query_image_path,

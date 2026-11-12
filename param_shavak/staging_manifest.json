@@ -1,0 +1,837 @@
+{
+  "results": [
+    {
+      "source": "weeks/week_01/data_exploration/dataset_exploration_meet.py",
+      "destination": "param_shavak/week_01/data_exploration/dataset_exploration_meet.py",
+      "size": 9334,
+      "sha256": "e8ba600771508c9f0e7785ff9c5f67770505072c1b13ea9a308827cca27ba347",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/data_exploration/explore_metadata_adarsh.py",
+      "destination": "param_shavak/week_01/data_exploration/explore_metadata_adarsh.py",
+      "size": 677,
+      "sha256": "da10abe29ec82e6b52c47528d5ba9852c16a145998799c45b9a5eda84e0b9b16",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/data_exploration/explore_metadata_jainam.py",
+      "destination": "param_shavak/week_01/data_exploration/explore_metadata_jainam.py",
+      "size": 2618,
+      "sha256": "000b1f46bbd339b964cf62d3914f6f96a7c94fccdb69ca135a99eafce439dca0",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/data_exploration/filter_clean_data_adarsh.py",
+      "destination": "param_shavak/week_01/data_exploration/filter_clean_data_adarsh.py",
+      "size": 1496,
+      "sha256": "3c7e2f93b4aadf525c3040818928e46bcc46276a0ad4685d59a11e46e3c181c8",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/data_exploration/label_analysis_adarsh.py",
+      "destination": "param_shavak/week_01/data_exploration/label_analysis_adarsh.py",
+      "size": 2307,
+      "sha256": "2be281d880b459d0419dc320c67c0a38e1c40a04faca8146537df4e48cff8ee6",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/inspection/inspect_dataset_meet.py",
+      "destination": "param_shavak/week_01/inspection/inspect_dataset_meet.py",
+      "size": 12278,
+      "sha256": "0a6f8bb5c9aed43bfd0d4a96e91ba35393ba5dfd49b8abbb215bb5ef367473ed",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_01/inspection/view_random_images_jainam.py",
+      "destination": "param_shavak/week_01/inspection/view_random_images_jainam.py",
+      "size": 2271,
+      "sha256": "5fd1cafafca202134ad921da94d8e96e8e99d9607426391daecffd7081b7aec4",
+      "category": "EXISTING_STAGED_W1",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataloader_adarsh.py",
+      "destination": "param_shavak/week_02/dataloader/dataloader_adarsh.py",
+      "size": 8384,
+      "sha256": "6573366765c4fc0f903323bc790b0a29e2b417c1da5a36b4515b849f996fecab",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataloader_fateh.py",
+      "destination": "param_shavak/week_02/dataloader/dataloader_fateh.py",
+      "size": 8416,
+      "sha256": "2df52b5101bdb98791d9016c9e468cce5c7fe80a316891985036eaa0e8607e7b",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataloader_meet.py",
+      "destination": "param_shavak/week_02/dataloader/dataloader_meet.py",
+      "size": 8404,
+      "sha256": "d8188b9b08ff3c39ffc01fca0dd7db14e1cb5469d63fc60126b6d4f5681ab7aa",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataset_adarsh.py",
+      "destination": "param_shavak/week_02/dataloader/dataset_adarsh.py",
+      "size": 21631,
+      "sha256": "113013b44a89774d726d0b524702d0a9d281da9687c3d3bb9ae46319f65c82b8",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataset_fateh.py",
+      "destination": "param_shavak/week_02/dataloader/dataset_fateh.py",
+      "size": 21575,
+      "sha256": "8ac2f83e2610782a488740d626027e9e0e8f214b350ffaf2689a4d55ed84b04f",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/dataset_meet.py",
+      "destination": "param_shavak/week_02/dataloader/dataset_meet.py",
+      "size": 21571,
+      "sha256": "166c47c9464495dae53468c4c2a4e68cfed633e35b0e231fe25b6ce13162b69a",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataloader/paired_bigearthnet_dataset_meet.py",
+      "destination": "param_shavak/week_02/dataloader/paired_bigearthnet_dataset_meet.py",
+      "size": 16733,
+      "sha256": "9e562b4bd33189c8674dd4e5a0e67baddbc351ff9dd3aae0b835a4a7ddcf94d1",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/preprocess_s2_adarsh.py",
+      "destination": "param_shavak/week_02/preprocessing/preprocess_s2_adarsh.py",
+      "size": 4502,
+      "sha256": "1818487581ec5275000c607eb2887b76b2ceff565fdcb0103db4b2e9829955d9",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/preprocess_s2_fateh.py",
+      "destination": "param_shavak/week_02/preprocessing/preprocess_s2_fateh.py",
+      "size": 2654,
+      "sha256": "6005f24a970e8839353e87efb5bf451d721e009aa520cd6100d14377f510ba33",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/preprocess_s2_jainam.py",
+      "destination": "param_shavak/week_02/preprocessing/preprocess_s2_jainam.py",
+      "size": 6224,
+      "sha256": "b71a09ea38a115fb47d9add380866ebc3a67caf32bf3cca66d7cf46d9e9182f1",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/preprocess_s2_meet.py",
+      "destination": "param_shavak/week_02/preprocessing/preprocess_s2_meet.py",
+      "size": 6852,
+      "sha256": "36e922652d47987e5d746773bf3399dd6d931dca2bd9c6557a3552b002994dce",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/sar_preprocessing_adarsh.py",
+      "destination": "param_shavak/week_02/preprocessing/sar_preprocessing_adarsh.py",
+      "size": 8281,
+      "sha256": "7dd94a30cfc5db697dcc3afbcaff36cd29cec7d96c51cf3d341ae459fa356eef",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/sar_preprocessing_fateh.py",
+      "destination": "param_shavak/week_02/preprocessing/sar_preprocessing_fateh.py",
+      "size": 3051,
+      "sha256": "c274a104e62f6a49b9dc22176d7e4edfedb406febc800b31a4f087eee6d56736",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/sar_preprocessing_jainam.py",
+      "destination": "param_shavak/week_02/preprocessing/sar_preprocessing_jainam.py",
+      "size": 8274,
+      "sha256": "c581576a750b8badd3098e8e5051bf9899f355a94eb82c8b583d9fdecd0c3441",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/sar_preprocessing_meet.py",
+      "destination": "param_shavak/week_02/preprocessing/sar_preprocessing_meet.py",
+      "size": 16494,
+      "sha256": "21476eb47dd9919a3217c2e4d8c8cab2ac0ee2a847d9f079f0cad16ec5d89dd1",
+      "category": "EXISTING_STAGED_W2",
+      "status": "RETAINED_IDENTICAL"
+    },
+    {
+      "source": "weeks/week_02/dataset_preparation/create_final_splits_jainam.py",
+      "destination": "param_shavak/week_02/dataset_preparation/create_final_splits_jainam.py",
+      "size": 5773,
+      "sha256": "34c6fd981046fd9ed830d006a5b98d1efe7dac56c0b756a3d54307203940dea6",
+      "category": "REQUIRED_SOURCE_W2",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_02/dataset_preparation/verify_pairs_jainam.py",
+      "destination": "param_shavak/week_02/dataset_preparation/verify_pairs_jainam.py",
+      "size": 3371,
+      "sha256": "c522f0d2c49265436faac907ac1632c67e449fe6ee59acedeb63b98eab8179ad",
+      "category": "REQUIRED_SOURCE_W2",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_02/preprocessing/stats_generator_meet.py",
+      "destination": "param_shavak/week_02/preprocessing/stats_generator_meet.py",
+      "size": 30601,
+      "sha256": "fd5c493224a83f70b6aad930da43e6cc6637485b75bd74446c0fb06f5071a2bf",
+      "category": "REQUIRED_SOURCE_W2",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/embeddings/baseline_extractor_fateh.py",
+      "destination": "param_shavak/week_03/embeddings/baseline_extractor_fateh.py",
+      "size": 2725,
+      "sha256": "6175a71db01e658383f2ce5e27ae15c5d50a8b97e242bc4d0baad26901d838f2",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/embeddings/faiss_baseline_fateh.py",
+      "destination": "param_shavak/week_03/embeddings/faiss_baseline_fateh.py",
+      "size": 1452,
+      "sha256": "3ec70cd6834a5f4f2059067a29d9f1028924b4a64089f13ec9a5dd48b07664e3",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/embeddings/generate_baseline_embeddings_adarsh.py",
+      "destination": "param_shavak/week_03/embeddings/generate_baseline_embeddings_adarsh.py",
+      "size": 5527,
+      "sha256": "bb8244eb26f0ab34b3632697a0808ba0a02cd33f19e8de02dea60ba9657f4bd2",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/embeddings/generate_s1_val_embeddings_meet.py",
+      "destination": "param_shavak/week_03/embeddings/generate_s1_val_embeddings_meet.py",
+      "size": 19262,
+      "sha256": "4b2b9eddf272d1c6d95febacc75837561091122d1da1b7c380db02cf5b6bbeca",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/embeddings/test_faiss_fateh.py",
+      "destination": "param_shavak/week_03/embeddings/test_faiss_fateh.py",
+      "size": 649,
+      "sha256": "7d07bca87f989efd68c0c4ca258c24ccb94e0f544719bab38635a63fb4e130b8",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/evaluation/build_results_table_adarsh.py",
+      "destination": "param_shavak/week_03/evaluation/build_results_table_adarsh.py",
+      "size": 1035,
+      "sha256": "1121ba2cd8f7fa4637d1e09c33b7ecfb25bf701b57262db31a4d68d5e9ab589e",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/evaluation/compute_map_adarsh.py",
+      "destination": "param_shavak/week_03/evaluation/compute_map_adarsh.py",
+      "size": 10317,
+      "sha256": "8873c13daa74c8466d3ec4fc4361a81115bfd4efb0b5b4923526865bc7d4a2be",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/evaluation/compute_map_week3_adarsh.py",
+      "destination": "param_shavak/week_03/evaluation/compute_map_week3_adarsh.py",
+      "size": 6662,
+      "sha256": "d7e1c48cfd7aa0415af0bd7a5a6108efed063490a73bbe18bbef4ae8cab24dad",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/evaluation/evaluate_baseline_map_fateh.py",
+      "destination": "param_shavak/week_03/evaluation/evaluate_baseline_map_fateh.py",
+      "size": 6231,
+      "sha256": "57b55168b24eb2d21af24517dd724f33bb213629fe02eb0bddfe2ee7bc70afb1",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/README.md",
+      "destination": "param_shavak/week_03/README.md",
+      "size": 5256,
+      "sha256": "cb9ca2f0278d5e8f02d4914e74238329d1bd5a56f5e3aec8c25c8d37f1a7d129",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/retrieval/baseline_ms_to_ms_retrieval_jainam.py",
+      "destination": "param_shavak/week_03/retrieval/baseline_ms_to_ms_retrieval_jainam.py",
+      "size": 11448,
+      "sha256": "b3a1885cf17b4fdfaf22d380a1b8e20aa0efa0799800ac7f1bf4bb4789f7a912",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/retrieval/baseline_ms_to_sar_retrieval_jainam.py",
+      "destination": "param_shavak/week_03/retrieval/baseline_ms_to_sar_retrieval_jainam.py",
+      "size": 11123,
+      "sha256": "a9ffc8a1cf79a71893c8c61e477c3fb01d67f9a400b5adea27e9a87f0dbb05d0",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/retrieval/baseline_retrieval_jainam.py",
+      "destination": "param_shavak/week_03/retrieval/baseline_retrieval_jainam.py",
+      "size": 14484,
+      "sha256": "cf871320b85927885819a13b50fd9ab916d9645de24a5d023a50b939473c3189",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/retrieval/baseline_sar_to_sar_retrieval_jainam.py",
+      "destination": "param_shavak/week_03/retrieval/baseline_sar_to_sar_retrieval_jainam.py",
+      "size": 12002,
+      "sha256": "98ea55ebe52851620d4f9268c831d6c2b18f2b603838e2ba5070e3682a12210a",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/visualization/generate_tsne_adarsh.py",
+      "destination": "param_shavak/week_03/visualization/generate_tsne_adarsh.py",
+      "size": 6407,
+      "sha256": "fbd2c52df18d2241dbc40286b82b543e26800301d31fc4eda7bb59df04863e64",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_03/visualization/label_distribution_adarsh.py",
+      "destination": "param_shavak/week_03/visualization/label_distribution_adarsh.py",
+      "size": 2589,
+      "sha256": "f2023d79d5100d8d919f3301cfe387477267a8fb60117c5aedfca84803c6e88e",
+      "category": "REQUIRED_SOURCE_W3",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/evaluation/monitor_overfitting_adarsh.py",
+      "destination": "param_shavak/week_04/evaluation/monitor_overfitting_adarsh.py",
+      "size": 5078,
+      "sha256": "e096834dfbc4c0e7bb7c230bd1af3f498f6edca81827d14213c9d1f0a4eeb061",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/models/resnet_meet.py",
+      "destination": "param_shavak/week_04/models/resnet_meet.py",
+      "size": 2418,
+      "sha256": "7cb64a522147e60fd5404caf682acb329f36b4ad597767166a9d0d12cea94d77",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/models/two_tower_adarsh.py",
+      "destination": "param_shavak/week_04/models/two_tower_adarsh.py",
+      "size": 4014,
+      "sha256": "bee0ea604cd34bfac3c655afb5a2659baf8cf7e9cfd97db179927fc5cbdc67f2",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/models/two_tower_fateh.py",
+      "destination": "param_shavak/week_04/models/two_tower_fateh.py",
+      "size": 3006,
+      "sha256": "88c30849dc53ea4ef691c0e9762cd70084628f188c180a20928529e9f1086272",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/models/two_tower_jainam.py",
+      "destination": "param_shavak/week_04/models/two_tower_jainam.py",
+      "size": 6162,
+      "sha256": "d88b4c4112d15ee2c8f50153b035e81aaac6bf865d017a121cb4def21b734319",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/models/two_tower_meet.py",
+      "destination": "param_shavak/week_04/models/two_tower_meet.py",
+      "size": 4014,
+      "sha256": "bee0ea604cd34bfac3c655afb5a2659baf8cf7e9cfd97db179927fc5cbdc67f2",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/README.md",
+      "destination": "param_shavak/week_04/README.md",
+      "size": 9887,
+      "sha256": "511c8460d7077d4043f6e94dc2c0dc33aea5ab4234793538346de96045121c03",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/training/train_jainam.py",
+      "destination": "param_shavak/week_04/training/train_jainam.py",
+      "size": 14089,
+      "sha256": "1e5240dedc8f092d5aebc181bc1ad3e306debe2c1e5ddd275bad834fd7e89c9e",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_04/visualization/plot_training_loss_adarsh.py",
+      "destination": "param_shavak/week_04/visualization/plot_training_loss_adarsh.py",
+      "size": 3442,
+      "sha256": "d5c8369e9268d17a62f603d75a52201df01348415994e7dc00e55c225767ef2d",
+      "category": "REQUIRED_SOURCE_W4",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/benchmarking/timing_meet.py",
+      "destination": "param_shavak/week_05/benchmarking/timing_meet.py",
+      "size": 22274,
+      "sha256": "9edceeeabe7ab3f0121e35a4e00bae8f5588253b2307da76ba21190f25674b54",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/app_meet.py",
+      "destination": "param_shavak/week_05/deployment/app_meet.py",
+      "size": 18183,
+      "sha256": "7f8e8adc369187282400b282ff6dac7a56ee269358e486b6bd27cd160537ac90",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/run_pipeline_meet.py",
+      "destination": "param_shavak/week_05/deployment/run_pipeline_meet.py",
+      "size": 10763,
+      "sha256": "7c99cd2ef7b0d56b5c320255b1f4228a7c98cbec8b94cd470ac8a52e4c4b3cf6",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/static/style.css",
+      "destination": "param_shavak/week_05/deployment/static/style.css",
+      "size": 17764,
+      "sha256": "f2210d49994af2cc23014a58a79f5587e200a2b6484558bf3faad4473183e1d2",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/templates/domain.html",
+      "destination": "param_shavak/week_05/deployment/templates/domain.html",
+      "size": 1792,
+      "sha256": "e7ef663716c0700d37d27d4d714dff576d561672914027a5180bac71cac69397",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/templates/search.html",
+      "destination": "param_shavak/week_05/deployment/templates/search.html",
+      "size": 12350,
+      "sha256": "bc06a60adcfdb5f8bc62b22bd8a211de2bdd5d8b2673dc4792007fddb6791fce",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/deployment/templates/subcategory.html",
+      "destination": "param_shavak/week_05/deployment/templates/subcategory.html",
+      "size": 1667,
+      "sha256": "bd7874b6f225bd5d1211b5e61227247bd28f855b3b0608e819029aca270531fa",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/embeddings/extract_test_embeddings_jainam.py",
+      "destination": "param_shavak/week_05/embeddings/extract_test_embeddings_jainam.py",
+      "size": 9694,
+      "sha256": "4a811f85b5e65a470c9dca17cf1de718eda30acb1660e142e308caea02b2b815",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/embeddings/extract_test_embeddings_meet.py",
+      "destination": "param_shavak/week_05/embeddings/extract_test_embeddings_meet.py",
+      "size": 9796,
+      "sha256": "eb793dce0f0b5008825253019468b098b587952d596eaf919410f6f61163145a",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/embeddings/generate_trained_embeddings_adarsh.py",
+      "destination": "param_shavak/week_05/embeddings/generate_trained_embeddings_adarsh.py",
+      "size": 11947,
+      "sha256": "20035f2977fa11a871f2ef812046f04ebfe50c337237f54b1f89bd6301fa564b",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/create_week5_final_report_jainam.py",
+      "destination": "param_shavak/week_05/evaluation/create_week5_final_report_jainam.py",
+      "size": 11589,
+      "sha256": "cf2e73fc90f6421608aac93dd8a0c3264c153e06e228c42bb83714ce5aebb082",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/evaluate_trained_cross_modal_jainam.py",
+      "destination": "param_shavak/week_05/evaluation/evaluate_trained_cross_modal_jainam.py",
+      "size": 11184,
+      "sha256": "18f8d1cee4d265df34cd97c8d5e48eca831be7ca55316ac6c68df62f9ffc3b5f",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/evaluate_trained_cross_modal_meet.py",
+      "destination": "param_shavak/week_05/evaluation/evaluate_trained_cross_modal_meet.py",
+      "size": 11460,
+      "sha256": "947a1763646c570b07e17faf35b6724b1e10b1c0900c0eab70c83f51852dbe15",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/evaluate_trained_same_modal_jainam.py",
+      "destination": "param_shavak/week_05/evaluation/evaluate_trained_same_modal_jainam.py",
+      "size": 16298,
+      "sha256": "f1b4672785202291ccce75749514e3239fb94cd13de94882d1bdc6dba953db25",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/evaluate_trained_same_modal_meet.py",
+      "destination": "param_shavak/week_05/evaluation/evaluate_trained_same_modal_meet.py",
+      "size": 16295,
+      "sha256": "088f20f2cd1f09ca8520296873767e7ce020d909bbc11e793d9df4cf361d6fad",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/evaluation/test_all_subcategories_meet.py",
+      "destination": "param_shavak/week_05/evaluation/test_all_subcategories_meet.py",
+      "size": 14065,
+      "sha256": "5ac1417f20029fb773d33e5fb90387a67924666ff7654eed499bb8f14afdda64",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/README.md",
+      "destination": "param_shavak/week_05/README.md",
+      "size": 14432,
+      "sha256": "b5d8ab4bb76391f6965704a07545df1981975cc1c5077fc36ea472e4b9839cf3",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/retrieval/build_faiss_indices_jainam.py",
+      "destination": "param_shavak/week_05/retrieval/build_faiss_indices_jainam.py",
+      "size": 7460,
+      "sha256": "bcd1c61b129f0e3eb43eed4f1aa12cb75e91e35ec7cbeab985d8e45ddf9f214f",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/retrieval/build_faiss_indices_meet.py",
+      "destination": "param_shavak/week_05/retrieval/build_faiss_indices_meet.py",
+      "size": 7323,
+      "sha256": "9169192e12d35104ca9d74c4166301cbbf89570fc67f1d7f89fd00b40ddf13f0",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/retrieval/identifier_mapper.py",
+      "destination": "param_shavak/week_05/retrieval/identifier_mapper.py",
+      "size": 4356,
+      "sha256": "75f6c50234d72cfa535fcffce68c9629f88a10a986bccef82cf0db7007e618b3",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/retrieval/retriever_meet.py",
+      "destination": "param_shavak/week_05/retrieval/retriever_meet.py",
+      "size": 34648,
+      "sha256": "8f18c385b769e53ea431d265796b5c6e49421e23d389dd94700c09323a699602",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/retrieval/test_retriever_meet.py",
+      "destination": "param_shavak/week_05/retrieval/test_retriever_meet.py",
+      "size": 14508,
+      "sha256": "7981c907fc8653b07b65608c2444d477f0ffd25b42559ca6e17a44d5a06f15ef",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/visualization/generate_trained_tsne_meet.py",
+      "destination": "param_shavak/week_05/visualization/generate_trained_tsne_meet.py",
+      "size": 12218,
+      "sha256": "d81b5ea7c630c92198817be94bfc5d0b177ad5fde43884c04ed8da866c4242e1",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/visualization/success_failure_cases_adarsh.py",
+      "destination": "param_shavak/week_05/visualization/success_failure_cases_adarsh.py",
+      "size": 9622,
+      "sha256": "acbcdacd60b4618a25dd7243c428fa1f74501f1596d3777c0591b223fe321ab1",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/visualization/tsne_visualization_meet.py",
+      "destination": "param_shavak/week_05/visualization/tsne_visualization_meet.py",
+      "size": 7376,
+      "sha256": "b658bac8c1b951bcb19f1591127af52668c26bd3c95957cd0904ed88d8fc58e7",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "weeks/week_05/visualization/visual_retrieval_grid_adarsh.py",
+      "destination": "param_shavak/week_05/visualization/visual_retrieval_grid_adarsh.py",
+      "size": 17104,
+      "sha256": "a43a49b800c658ad565fd685896283682a433d702a0424a7f799feb9f1639821",
+      "category": "REQUIRED_SOURCE_W5",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/config_jainam.yaml",
+      "destination": "param_shavak/shared/config/config_jainam.yaml",
+      "size": 299,
+      "sha256": "ae1301e1fd46f10dd369a63891cd0b74fe8d038689b678635065266ce315425a",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/disaster_modality_config.json",
+      "destination": "param_shavak/shared/config/disaster_modality_config.json",
+      "size": 3798,
+      "sha256": "d21fa2da10fb1f8c5be02aa4faad1d1c44942876f9aa8f5c59df598c6fce9a20",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/environment_hpc.yml",
+      "destination": "param_shavak/shared/config/environment_hpc.yml",
+      "size": 539,
+      "sha256": "93b3e5fb252956885f110fd7bc5c65fcd77faab4e92716ec22e5648460afc2e8",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/requirements_hpc.txt",
+      "destination": "param_shavak/shared/config/requirements_hpc.txt",
+      "size": 820,
+      "sha256": "ca69381d490d57b3973b52ca3ff24450a9a13b8038fdd0e2ef2cd6f5803b41cb",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/requirements_jainam.txt",
+      "destination": "param_shavak/shared/config/requirements_jainam.txt",
+      "size": 186,
+      "sha256": "a8543546fff7f497927a8e4688e5639ef0d018502b88d189ce90695f4ca72324",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/requirements_local.txt",
+      "destination": "param_shavak/shared/config/requirements_local.txt",
+      "size": 826,
+      "sha256": "22dd333a3ac6d3cc246561e9f15714f7a7d26c482aea30d06a1fb489699bb27d",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/requirements_web.txt",
+      "destination": "param_shavak/shared/config/requirements_web.txt",
+      "size": 31,
+      "sha256": "006f5425895353fac16bf25f93f5cab0b2d44aebdae4d66a084f07a5cc1a8274",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/settings.py",
+      "destination": "param_shavak/shared/config/settings.py",
+      "size": 5787,
+      "sha256": "20afc3e60d5aa637f614f12032dc24317af9ee2f7442dc7dccfa835d42c824f8",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/settings_adarsh.py",
+      "destination": "param_shavak/shared/config/settings_adarsh.py",
+      "size": 4314,
+      "sha256": "1fcc1c54db81de252c2151a0f6b9f6c08bdcf4b9d5dc1fa518f2bba22bfab187",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/settings_fateh.py",
+      "destination": "param_shavak/shared/config/settings_fateh.py",
+      "size": 725,
+      "sha256": "6460b7f50550ba5b6da535485e3848dc220da84db74c99f5666d43eaf9470e19",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/config/settings_meet.py",
+      "destination": "param_shavak/shared/config/settings_meet.py",
+      "size": 4316,
+      "sha256": "faa1193e5e8f93022a55a263ee7530dbc09533c3b5363f4d93e4afa367672131",
+      "category": "REQUIRED_CONFIG",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/utilities/config_jainam.py",
+      "destination": "param_shavak/shared/utilities/config_jainam.py",
+      "size": 577,
+      "sha256": "7f5aa7a004753384db20053fe93628c86d3015a25eeb5670350fc80b36c4c49d",
+      "category": "REQUIRED_SHARED_MODULE",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/utilities/io_jainam.py",
+      "destination": "param_shavak/shared/utilities/io_jainam.py",
+      "size": 1659,
+      "sha256": "2d1b4c6e6e727d29f4327646b6b59f66247a222c74be6b6e38bab02f79148f8b",
+      "category": "REQUIRED_SHARED_MODULE",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/utilities/static_code_auditor.py",
+      "destination": "param_shavak/shared/utilities/static_code_auditor.py",
+      "size": 25244,
+      "sha256": "2d607f04f741dfdff5c4da77871b88d7563bc41762f8723dd63c0527c93d4bb3",
+      "category": "REQUIRED_SHARED_MODULE",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/utilities/visualization_meet.py",
+      "destination": "param_shavak/shared/utilities/visualization_meet.py",
+      "size": 10041,
+      "sha256": "23689c55ddf9c5e6f020461dd6955f8a4010c6d3b7873545fa0211e7f3724940",
+      "category": "REQUIRED_SHARED_MODULE",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/models/best_model-v1.ckpt",
+      "destination": "param_shavak/models/best_model-v1.ckpt",
+      "size": 628042368,
+      "sha256": "83c11cbfa3865dff907b28b4efc28817b40decb7d5790f4a88b3dc03c0423a7c",
+      "category": "REQUIRED_MODEL_CHECKPOINT",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "shared/models/best_model-v1.ckpt",
+      "destination": "param_shavak/shared/models/best_model-v1.ckpt",
+      "size": 628042368,
+      "sha256": "83c11cbfa3865dff907b28b4efc28817b40decb7d5790f4a88b3dc03c0423a7c",
+      "category": "REQUIRED_MODEL_CHECKPOINT",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/splits/subset_30k.csv",
+      "destination": "param_shavak/data/splits/subset_30k.csv",
+      "size": 7615243,
+      "sha256": "785660d6202f450694943ce350ab7791d7761fc00e9d675779c08a0988ad3730",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/splits/test_split.csv",
+      "destination": "param_shavak/data/splits/test_split.csv",
+      "size": 1064531,
+      "sha256": "103436a01b7441f912d185f8dac9bfab0d8b555e15af015aca42a6d625fb2a9e",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/splits/train_split.csv",
+      "destination": "param_shavak/data/splits/train_split.csv",
+      "size": 4936307,
+      "sha256": "8008195f2c6753559f416d63ae5a2d2f32d02f36217473f3ce5eeddf7d58dd2c",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/splits/val_split.csv",
+      "destination": "param_shavak/data/splits/val_split.csv",
+      "size": 1101827,
+      "sha256": "01223bbe59f6af32451de59b4c84d7f1bf2dde7dff8c6cceafcae94c78184311",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/paired_dataloader_verification_summary.json",
+      "destination": "param_shavak/data/normalization_stats/paired_dataloader_verification_summary.json",
+      "size": 642,
+      "sha256": "6ce8daaa35b653ec8c4e0efde83d2189b5553cca175fbe2dda4b8cad1a141807",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/s1_stats.json",
+      "destination": "param_shavak/data/normalization_stats/s1_stats.json",
+      "size": 738,
+      "sha256": "3f45a9f9b4e33a576ed1ba96fb1996e93a2e5eb8eb4a962b809cdeebe828dea7",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/s1_stats_regeneration_summary.json",
+      "destination": "param_shavak/data/normalization_stats/s1_stats_regeneration_summary.json",
+      "size": 1419,
+      "sha256": "33c35a1b2e6632ceb854a1cc31e1fcc43a3febd394b1a34ce795530d6f564d1a",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/s2_stats.json",
+      "destination": "param_shavak/data/normalization_stats/s2_stats.json",
+      "size": 325,
+      "sha256": "dd456c452abf6630804940d58918179c427fa59e6cbc669bab8c0751dc7c8c7e",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/sar_preprocessing_test_results.json",
+      "destination": "param_shavak/data/normalization_stats/sar_preprocessing_test_results.json",
+      "size": 416,
+      "sha256": "80d6d7d426e84b260f50eadd4d2f3428bc4f1b3e7a68ab13d5d5bf6f6f086f1e",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_02/normalization_stats/statistics.json",
+      "destination": "param_shavak/data/normalization_stats/statistics.json",
+      "size": 11471,
+      "sha256": "6eb6cefa5e7d3e5316442ce2565d374f14bcfdcc7f722616af1ba1f87bae2b1d",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    },
+    {
+      "source": "results/local_pc/week_05/trained_embeddings/test_patch_id_mapping.csv",
+      "destination": "param_shavak/data/test_patch_id_mapping.csv",
+      "size": 605941,
+      "sha256": "5fe6c65bebcd794e8e78d7cb0b04accc982105df78afec292fac4108cee843c9",
+      "category": "REQUIRED_DATASET",
+      "status": "COPIED_VERIFIED"
+    }
+  ],
+  "conflicts": []
+}

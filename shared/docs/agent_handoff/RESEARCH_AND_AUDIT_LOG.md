@@ -593,3 +593,207 @@ Backups preserved in `weeks/week_03/.backup_pre_correction_w3/`.
 8. **Ranking Equivalence**: Proved `IndexFlatIP` on normalized vectors produces identical top-10 retrieval ranking to normalized `IndexFlatL2` on controlled 50-vector sample.
 9. **Controlled Metric Unit Test**: Hand-verified AP=0.5000, Recall@1=0, Recall@3=1, Recall@5=1 on synthetic ranked retrieval example.
 
+---
+
+## 15. Week 4 Two-Tower Architecture Audit, Controlled Corrections & Validation (November 2026)
+
+### 15.1 Scope & Inventory
+`[VERIFIED IN SOURCE CODE & ARTIFACTS]`
+- Full audit of all 10 Week 4 source files and 7 experimental artifacts.
+- Pristine backups stored in `weeks/week_04/.backup_pre_correction_w4/`.
+- All contributor originals (`two_tower_adarsh.py`, `two_tower_meet.py`, `two_tower_fateh.py`, `resnet_meet.py`, `train_adarsh.py`, `train_two_tower_fateh.py`) preserved 100% untouched.
+
+### 15.2 Applied Source Corrections
+`[CRYPTOGRAPHICALLY VERIFIED VIA SHA-256]`
+
+| File Path | Pre-Edit SHA-256 | Post-Edit SHA-256 | Action & Scientific Rationale |
+|---|---|---|---|
+| `weeks/week_04/models/two_tower_jainam.py` | `BEE0EA604CD34BFAC3C655AFB5A2659BAF8CF7E9CFD97DB179927FC5CBDC67F2` | `D88B4C4112D15EE2C8F50153B035E81AAAC6BF865D017A121CB4DEF21B734319` | Added `use_batchnorm` flag. Preserved historical 3-layer architecture (`Linear -> ReLU -> Linear`) as default (`False`) for 100% key compatibility with `best_model-v1.ckpt`. Added BatchNorm1d when `True`. Documented B>=2 training requirement. |
+| `weeks/week_04/training/train_jainam.py` | `E5F8B61C3B414F2EBFA2EF357E9E6A69C8EE2727CE01687C3F03470810AFDB58` | `1E5240DEDC8F092D5AEBC181BC1AD3E306DEBE2C1E5DDD275BAD834FD7E89C9E` | Fixed broken imports to canonical modules (`weeks.week_02.dataloader.dataloader_adarsh` and `weeks.week_04.models.two_tower_jainam`). Integrated `shared.config.settings`. Added deterministic seeding, configurable `--optimizer` (`Adam` default, `AdamW` alternative), and isolated `--run-dir`. |
+| `weeks/week_04/evaluation/monitor_overfitting_adarsh.py` | `69068C6CA48DC93A38B45533350AA567316654991E5EC8A1D50D0349887593BE` | `E096834DFBC4C0E7BB7C230BD1AF3F498F6EDCA81827D14213C9D1F0A4EEB061` | Resolved broken hardcoded paths using `shared.config.settings`. Added CLI argument overrides (`--metrics-csv`, `--output-report`). Preserved exact evaluation logic. |
+| `weeks/week_04/visualization/plot_training_loss_adarsh.py` | `E6A6EE8F4AC8553E86601B48AD5E30E9F94C78A245BFBE314CF0B1E622DB8DCC` | `D5C8369E9268D17A62F603D75A52201DF01348415994E7DC00E55C225767EF2D` | Resolved broken hardcoded paths using `shared.config.settings`. Added CLI argument overrides. Added graceful dependency handling when `matplotlib` is absent. |
+| `weeks/week_04/README.md` | *(New File)* | `07EA7C0CF81B8F7CA74A41FC7DB6DE57519BD96404A377D524F3B260DE858567` | Complete Week 4 technical guide, parameter tables, architecture diagrams, loss formulas, and execution commands. |
+
+### 15.3 Verification Results
+1. **Compilation (`py_compile`)**: All 10 Week 4 scripts compiled cleanly with 0 syntax errors.
+2. **Settings Resolution**: Verified dynamic path resolution for `PROJECT_ROOT`, `RESULTS_DIR`, `SPLITS_DIR`, `STATS_DIR`, and `CHECKPOINTS_DIR`.
+3. **InfoNCE Mathematics**: Verified swap invariance ($\mathcal{L}(S, M) \equiv \mathcal{L}(M, S)$) and exact match with theoretical chance baseline ($\ln(4) \approx 1.386294...$ within $3.81 \times 10^{-9}$).
+4. **Overfitting Analysis**: Successfully executed against historical `results/local_pc/week_04/metrics/metrics.csv`, verifying convergence to best validation loss $0.141299$ at Epoch 19.
+5. **Loss Visualization**: Parsed all 20 epochs cleanly and output loss progression tables.
+6. **Documentation Qualifications**: Recorded physical checkpoint non-availability on local machine, host Python environment missing `torch`/`matplotlib`, and architectural non-equivalence of `use_batchnorm`.
+
+---
+
+## 16. Week 5 Trained Embedding Extraction, FAISS Retrieval & Atlas Portal Audit (November 2026)
+
+### 16.1 Scope & Inventory
+`[VERIFIED IN SOURCE CODE & ARTIFACTS]`
+- Full read-only audit of all 21 Week 5 source files across 6 directories (`benchmarking/`, `deployment/`, `embeddings/`, `evaluation/`, `retrieval/`, `visualization/`).
+- Full empirical inspection of all 26 historical artifacts in `results/local_pc/week_05/`.
+- No source files, contributor originals, or historical artifacts modified.
+- Full comprehensive audit report authored at `shared/docs/audit_report/week5_comprehensive_read_only_audit.md`.
+
+### 16.2 Key Scientific & Technical Findings
+1. **Embedding Matrix Integrity**:
+   - `trained_test_sar_embeddings.npy` & `trained_test_ms_embeddings.npy`: Verified shape `(4500, 512)`, `float32`, all finite. Euclidean $L_2$ norms are strictly $1.000000 \pm 10^{-6}$ (`[VERIFIED — DATA]`).
+   - `trained_val_sar_embeddings.npy` & `trained_val_ms_embeddings.npy`: Verified shape `(4500, 512)`, `float32`, all finite. **Critical Defect**: Omitted $L_2$ normalization (norms range from 3.41 to 71.93), contradicting documentation in `trained_tsne_metadata.json` (`[VERIFIED — DATA]`).
+2. **Patch ID Alignment & Namespace Conflation**:
+   - All 3 ID manifests contain exactly 4,500 unique IDs.
+   - `trained_test_sar_patch_ids.txt` contains Sentinel-2 `patch_id` strings (`S2A_...`), with **0 / 4,500 matches** to `test_split.csv['s1_name']`. While enabling evaluation via exact string comparison, it conflates the SAR scene namespace and breaks raw file lookup (`[VERIFIED — DATA]`).
+3. **FAISS Architecture & Mathematical Equivalence**:
+   - Both `sar_gallery.index` and `ms_gallery.index` use `faiss.IndexFlatIP(512)`.
+   - File size on disk is exactly $4500 \times 512 \times 4 + 45 = 9,216,045\text{ bytes}$.
+   - Because test embeddings are unit vectors ($\|u\|_2 = \|v\|_2 = 1$), inner product search is mathematically identical to cosine similarity search: $\langle u, v \rangle = \cos(\theta)$ (`[VERIFIED — STATIC]`).
+4. **Retrieval Relevance & Metrics**:
+   - Cross-Modal: SAR$\to$MS achieved Recall@1=38.78%, Recall@5=64.82%, Recall@10=75.04% (~91x improvement over Week 3 baseline Recall@10 of 0.82%). MS$\to$SAR achieved Recall@1=37.04%, Recall@5=63.73%, Recall@10=74.00% (`[HISTORICAL EVIDENCE]`).
+   - Same-Modal: Proper self-exclusion ($K+1$ search, query filtered). SAR$\to$SAR achieved Recall@1=53.40%, mAP@10=61.24%. MS$\to$MS achieved Recall@1=57.84%, mAP@10=64.09% (`[HISTORICAL EVIDENCE]`).
+5. **Critical Benchmark Defect in `timing_results.json`**:
+   - `timing_meet.py`'s self-test defines a 1-layer toy linear model `PlaceholderEncoder` (64-D) on random numbers. The resulting benchmark numbers (1.51 ms single inference, 662 FPS on CPU) were saved directly to `results/local_pc/week_05/benchmarking/timing_results.json`. This misrepresents ResNet-50 computational latency and is scientifically invalid (`[VERIFIED — STATIC]`).
+6. **Deployment & Portal Architecture**:
+   - `app_meet.py` is the functional production portal with real `CrossModalRetriever`, FAISS galleries, and 6 subcategories.
+   - `app_fateh.py` is an early prototype generating synthetic random numbers via `random.uniform(0.75, 0.95)`.
+7. **Import & Path Integrity**:
+   - All 14 core scripts contain broken package imports (`src.data...`, `src.models...`, `week4...`) or hardcoded paths (`C:\Users\hp\...`, `C:\BigEarthNet...`) preventing out-of-the-box execution.
+8. **Runtime Blockers**:
+   - Host Python environment lacks `torch`, `torchvision`, `faiss`, `matplotlib`, and `rasterio`.
+   - Physical checkpoint binary `best_model-v1.ckpt` (598.95 MB) is not present locally (pointer file only).
+
+### 16.3 Final Verdict
+**HOLD WEEK 5 FOR CONTROLLED CORRECTIONS**  
+Scope for Phase B: clean package imports, connect `shared.config.settings`, fix validation embedding normalization, repair SAR patch ID namespace mapping, eliminate placeholder benchmark code, and standardize `app_meet.py`.
+
+
+
+
+---
+
+## Section 17 — Week 5 Phase A.1 Scientific Reconciliation & Phase B Controlled Implementation
+
+**Date:** 2026-11-12  
+**Agent Role:** Senior ML Research Engineer, PyTorch Architect and Research Code Auditor  
+**Authorized by:** Phase A audit verdict (HOLD WEEK 5 FOR CONTROLLED CORRECTIONS)
+
+---
+
+### 17.1 Phase A.1 — Scientific Reconciliation Findings
+
+#### 17.1.1 Same-Modal AP@10 Definition
+
+**Finding:** The same-modal evaluators compute AP using `sum(rel_retrieved)` as the denominator — not `min(total_relevant, K)` as in standard truncated mAP@K.
+
+This metric is accurately named **`mAP_ret@10`** (Retrieved-Normalized AP@10).
+
+Historical values preserved unchanged:
+- SAR→SAR `mAP_ret@10` = **61.24%**
+- MS→MS `mAP_ret@10` = **64.09%**
+
+#### 17.1.2 Same-Modal Recall@K Definition
+
+**Finding:** The same-modal "Recall@K" evaluates `any(relevance[:k])` per query — it measures the fraction of queries that have *at least one* relevant result in the top-K. This is **Hit Rate@K**, not conventional Recall@K.
+
+Accurate label: **`HitRate@K`**
+
+Historical values reconciled against `trained_same_modal_results.csv` (Phase B.2):
+- SAR→SAR: `HitRate@1` = **53.40%**, `HitRate@5` = **85.98%**, `HitRate@10` = **92.49%**, `mAP_ret@10` = **61.24%**
+- MS→MS: `HitRate@1` = **57.84%**, `HitRate@5` = **87.04%**, `HitRate@10` = **93.47%**, `mAP_ret@10` = **64.09%**
+
+*(Correction note: The earlier Phase B draft contained unsupported figures of 68.57% and 71.23% HitRate@10; these were resolved and replaced in Phase B.2 with the authentic figures from `trained_same_modal_results.csv`.)*
+
+#### 17.1.3 SAR Identifier Namespace
+
+**Finding:** `trained_test_sar_patch_ids.txt` stores paired `patch_id` strings (`S2A_...`), required for exact cross-modal positive-pair matching. This is correct and must be preserved.
+
+Native Sentinel-1 radar acquisition directory names (`S1B_IW_...`) live in BigEarthNet-S1 on disk and are accessed via `s1_name` column in `test_split.csv`.
+
+**Resolution:** A non-destructive mapping CSV (`test_patch_id_mapping.csv`) bridges `patch_id` ↔ `s1_name` ↔ `s2v1_name` for disk lookups without modifying the historical manifests.
+
+---
+
+### 17.2 Phase B — Implementation Summary
+
+#### 17.2.1 Files Corrected (22 total — 0 compile errors)
+
+| File | Key Corrections |
+|---|---|
+| `generate_trained_embeddings_adarsh.py` | Fully implemented; CLI args; `torch is None` guard; canonical imports |
+| `extract_test_embeddings_jainam.py` | `src.*` → `weeks.week_04.*`, `weeks.week_02.*`; settings integration |
+| `extract_test_embeddings_meet.py` | Same as Jainam variant; provenance docstring |
+| `evaluate_trained_same_modal_jainam.py` | `Recall@K` → `HitRate@K`; `mAP@10` → `mAP_ret@10`; non-overwriting output |
+| `evaluate_trained_same_modal_meet.py` | Same as Jainam variant |
+| `evaluate_trained_cross_modal_jainam.py` | Path integration; CLI args; faiss guard |
+| `evaluate_trained_cross_modal_meet.py` | Same as Jainam variant |
+| `create_week5_final_report_jainam.py` | CLI args; Phase A.1 note; non-overwriting runs; **executed successfully** |
+| `build_faiss_indices_jainam.py` | Canonical paths; CLI args; faiss guard |
+| `build_faiss_indices_meet.py` | Same as Jainam variant |
+| `identifier_mapper.py` | **NEW** — IdentifierMapper class; `get_identifier_mapper()` singleton; unit tested |
+| `retriever_meet.py` | `src.*` → canonical; config/stats/index paths fixed; identifier mapper integrated; `torch/faiss is None` guard |
+| `test_retriever_meet.py` | `src.*` → canonical; pre-flight env checks; graceful skip on missing torch/faiss/checkpoint |
+| `app_meet.py` | `src.inference.retriever` → `weeks.week_05.retrieval.retriever_meet`; hardcoded `"faiss_ms": "1.2"` removed; sample scene paths canonical |
+| `app_fateh.py` | PROTOTYPE / MOCK DEMO header added |
+| `run_pipeline_meet.py` | LEGACY SCRIPT provenance header added |
+| `timing_meet.py` | PlaceholderEncoder deprecated with `DeprecationWarning`; `TwoTowerBenchmark` class implemented |
+| `test_all_subcategories_meet.py` | `from src.inference.retriever` → `from weeks.week_05.retrieval.retriever_meet` |
+| `generate_trained_tsne_meet.py` | Previously corrected in Phase A |
+| `success_failure_cases_adarsh.py` | Previously corrected in Phase A |
+| `tsne_visualization_meet.py` | Previously corrected in Phase A |
+| `visual_retrieval_grid_adarsh.py` | Previously corrected in Phase A |
+
+#### 17.2.2 New Artifacts Created
+
+| Artifact | Location | SHA256 / Notes |
+|---|---|---|
+| `test_patch_id_mapping.csv` | `results/local_pc/week_05/trained_embeddings/` | 5fe6c65b... (4,500 rows) |
+| `identifier_mapper.py` | `weeks/week_05/retrieval/` | Reusable helper |
+| `trained_val_sar_embeddings_l2.npy` | `results/local_pc/week_05/trained_embeddings/derived_val_l2/` | (4500,512) norm=1.000000±1e-6 (Quarantined in Phase B.2) |
+| `trained_val_ms_embeddings_l2.npy` | `results/local_pc/week_05/trained_embeddings/derived_val_l2/` | (4500,512) norm=1.000000±1e-6 (Quarantined in Phase B.2) |
+| `trained_val_l2_metadata.json` | `results/local_pc/week_05/trained_embeddings/derived_val_l2/` | Shape/norm verification (Quarantined in Phase B.2) |
+| `derived_val_l2/README.md` | `results/local_pc/week_05/trained_embeddings/derived_val_l2/` | Quarantine & unverified provenance documentation |
+| `weeks/week_05/README.md` | `weeks/week_05/` | Comprehensive technical doc (reconciled metrics) |
+| `week5_phaseB_implementation_report.md` | `shared/docs/audit_report/` | Phase B implementation record |
+| `week5_phaseB1_post_implementation_reconciliation.md` | `shared/docs/audit_report/` | Phase B.1 reconciliation report |
+| `week5_phaseB2_targeted_corrections_report.md` | `shared/docs/audit_report/` | Phase B.2 targeted corrections report |
+
+#### 17.2.3 Static Validation
+
+```
+Full sweep: 22 Week 5 Python files — ERRORS: 0
+Import/path scan: CLEAN (no src.*, no C:\Users\hp\...)
+```
+
+#### 17.2.4 Runtime Validation (Environment-Limited)
+
+| Test | Outcome |
+|---|---|
+| `test_retriever_meet.py` | `[BLOCKED BY ENVIRONMENT]` exit 0 ✅ |
+| `timing_meet.py --mode sar` | `[BLOCKED BY ENVIRONMENT]` exit 0 ✅ |
+| `create_week5_final_report_jainam.py` | Executed successfully ✅ |
+| `identifier_mapper.py` unit test | 4,500 rows verified ✅ |
+| L2 embedding norms | 1.000000 ± 1e-6 ✅ |
+
+---
+
+### 17.3 Runtime Validation Status (Blocked Items)
+
+The following six runtime operations remain strictly **BLOCKED BY ENVIRONMENT** in the active local environment:
+1. **Actual trained checkpoint loading**: Physical 598.95 MB `best_model-v1.ckpt` binary is not present locally (pointer file only).
+2. **Real neural-network forward inference**: PyTorch (`torch`) is not installed in the active Python 3.13 environment.
+3. **Real trained embedding regeneration**: Requires PyTorch and the checkpoint binary.
+4. **FAISS index construction and query execution**: `faiss-cpu` / `faiss-gpu` is not installed.
+5. **Live Atlas search execution**: Requires PyTorch, FAISS, and `rasterio` for GeoTIFF reading.
+6. **Real-model latency benchmarking**: `timing_meet.py` real benchmark mode requires checkpoint and data; fails closed with `[BLOCKED BY ENVIRONMENT]`.
+
+All scripts have been audited and verified to handle these blockers gracefully with clear `[BLOCKED BY ENVIRONMENT]` messages.
+
+---
+
+### 17.4 Status & Qualification (Phase B.2 Reconciliation)
+
+**Status:** **Week 5: Statically Integrated & Audited; Runtime Validation Blocked by Environment.**
+
+- **Static Integration**: All 22 Week 5 Python files compile cleanly (`py_compile`), with zero broken `src.*` imports and zero hardcoded user paths.
+- **Data Integrity**: 4,500-row `test_patch_id_mapping.csv` is mathematically verified against authoritative splits.
+- **Derived Artifacts**: Validation L2 arrays are quarantined in `results/local_pc/week_05/trained_embeddings/derived_val_l2/`.
+- **Benchmark Safety**: `timing_meet.py` defaults to fail-closed real benchmark mode; synthetic proxies are strictly isolated behind `--allow-synthetic-proxy`.
+- **Scope Distinction**: Weeks 1–4 were previously audited and locally validated where feasible. Week 5 is statically integrated, but full end-to-end runtime validation across Weeks 4–5 remains blocked until the required deep learning dependencies and checkpoint binary are provisioned.
+- **HPC Execution**: The project does not automatically advance to cluster execution; cluster execution is pending an explicitly authorized HPC phase once the target environment is ready.
+
